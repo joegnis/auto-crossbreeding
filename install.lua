@@ -35,7 +35,7 @@ if args[2] ~= nil then
     option = args[2]
 end
 
-local repo = args[3] or "https://raw.githubusercontent.com/huchenlei/auto-crossbreeding/";
+local repo = args[3] or "https://raw.githubusercontent.com/joegnis/auto-crossbreeding/";
 
 for i = 1, #scripts do
     shell.execute(string.format("wget -f %s%s/%s", repo, branch, scripts[i]));
