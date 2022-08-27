@@ -20,7 +20,7 @@ local function fullyCharged()
 end
 
 local function fullInventory()
-    for i=1, robot.inventorySize() do
+    for i = 1, robot.inventorySize() do
         if robot.count(i) == 0 then
             return false
         end
@@ -49,9 +49,9 @@ local function restockStick(resume)
         gps.save()
     end
     gps.go(config.stickContainerPos)
-    robot.select(robot.inventorySize()+config.stickSlot)
-    for i=1, inventory_controller.getInventorySize(sides.down) do
-        inventory_controller.suckFromSlot(sides.down, i, 64-robot.count())
+    robot.select(robot.inventorySize() + config.stickSlot)
+    for i = 1, inventory_controller.getInventorySize(sides.down) do
+        inventory_controller.suckFromSlot(sides.down, i, 64 - robot.count())
         if robot.count() == 64 then
             break
         end
@@ -68,10 +68,10 @@ local function dumpInventory(resume)
         gps.save()
     end
     gps.go(config.storagePos)
-    for i=1, robot.inventorySize()+config.storageStopSlot do
+    for i = 1, robot.inventorySize() + config.storageStopSlot do
         if robot.count(i) > 0 then
             robot.select(i)
-            for e=1, inventory_controller.getInventorySize(sides.down) do
+            for e = 1, inventory_controller.getInventorySize(sides.down) do
                 if inventory_controller.getStackInSlot(sides.down, e) == nil then
                     inventory_controller.dropIntoSlot(sides.down, e)
                     break;
@@ -100,12 +100,12 @@ local function placeCropStick(count)
         count = 1
     end
     local selectedSlot = robot.select()
-    if robot.count(robot.inventorySize()+config.stickSlot) < count + 1 then
+    if robot.count(robot.inventorySize() + config.stickSlot) < count + 1 then
         restockStick()
     end
-    robot.select(robot.inventorySize()+config.stickSlot)
+    robot.select(robot.inventorySize() + config.stickSlot)
     inventory_controller.equip()
-    for _=1, count do
+    for _ = 1, count do
         robot.useDown()
     end
     inventory_controller.equip()
@@ -117,7 +117,7 @@ local function deweed()
     if config.takeCareOfDrops and fullInventory() then
         dumpInventory()
     end
-    robot.select(robot.inventorySize()+config.spadeSlot)
+    robot.select(robot.inventorySize() + config.spadeSlot)
     inventory_controller.equip()
     robot.useDown()
     if config.takeCareOfDrops then
@@ -130,7 +130,7 @@ end
 local function transplant(src, dest)
     local selectedSlot = robot.select()
     gps.save()
-    robot.select(robot.inventorySize()+config.binderSlot)
+    robot.select(robot.inventorySize() + config.binderSlot)
     inventory_controller.equip()
 
     -- transfer the crop to the relay location
@@ -173,11 +173,11 @@ local function transplantToMultifarm(src, dest)
     local selectedSlot = robot.select()
     gps.save()
 
-    if robot.count(robot.inventorySize()+config.stickSlot) < 2 then
+    if robot.count(robot.inventorySize() + config.stickSlot) < 2 then
         restockStick()
     end
 
-    robot.select(robot.inventorySize()+config.binderSlot)
+    robot.select(robot.inventorySize() + config.binderSlot)
     inventory_controller.equip()
 
     -- transfer the crop to the relay location
@@ -219,7 +219,7 @@ local function transplantToMultifarm(src, dest)
 end
 
 local function destroyAll()
-    for slot=2, config.farmArea, 2 do
+    for slot = 2, config.farmArea, 2 do
         gps.go(posUtil.farmToGlobal(slot))
         robot.swingDown()
         if config.takeCareOfDrops then

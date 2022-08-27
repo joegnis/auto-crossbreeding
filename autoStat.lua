@@ -5,7 +5,7 @@ local scanner = require("scanner")
 local posUtil = require("posUtil")
 local config = require("config")
 
-local args = {...}
+local args = { ... }
 local nonstop = false
 local docleanup = false
 if #args == 1 then
@@ -25,14 +25,14 @@ local function updateLowest()
     lowestStatSlot = 0
     local farm = database.getFarm()
     local workingCropName = database.getFarm()[1].name
-    for slot=1, config.farmArea, 2 do
+    for slot = 1, config.farmArea, 2 do
         local crop = farm[slot]
         if crop ~= nil then
             if crop.name == 'crop' then
                 lowestStatSlot = slot
                 break;
             else
-                local stat = crop.gr+crop.ga-crop.re
+                local stat = crop.gr + crop.ga - crop.re
                 if stat < lowestStat then
                     lowestStat = stat
                     lowestStatSlot = slot
@@ -43,7 +43,7 @@ local function updateLowest()
 end
 
 local function findSuitableFarmSlot(crop)
-    if crop.gr+crop.ga-crop.re > lowestStat then
+    if crop.gr + crop.ga - crop.re > lowestStat then
         return lowestStatSlot
     else
         return 0
@@ -51,9 +51,9 @@ local function findSuitableFarmSlot(crop)
 end
 
 local function isWeed(crop)
-    return crop.name == "weed" or 
+    return crop.name == "weed" or
         crop.name == "Grass" or
-        crop.gr > 21 or 
+        crop.gr > 21 or
         (crop.name == "venomilia" and crop.gr > 7);
 end
 
@@ -91,7 +91,7 @@ end
 local function checkParent(slot, crop)
     if crop.isCrop and isWeed(crop) then
         action.deweed();
-        database.updateFarm(slot, {name='crop'});
+        database.updateFarm(slot, { name = 'crop' });
         updateLowest();
     end
 end
@@ -103,7 +103,7 @@ local function breedOnce()
         return true
     end
 
-    for slot=1, config.farmArea, 1 do
+    for slot = 1, config.farmArea, 1 do
         gps.go(posUtil.farmToGlobal(slot))
         local crop = scanner.scan()
 
@@ -112,7 +112,7 @@ local function breedOnce()
         else
             checkParent(slot, crop);
         end
-        
+
         if action.needCharge() then
             action.charge()
         end
@@ -135,13 +135,13 @@ end
 local function main()
     init()
     while not breedOnce() do
-        gps.go({0,0})
+        gps.go({ 0, 0 })
         action.restockAll()
     end
-    gps.go({0,0})
+    gps.go({ 0, 0 })
     if docleanup then
         action.destroyAll()
-        gps.go({0,0})
+        gps.go({ 0, 0 })
     end
     if config.takeCareOfDrops then
         action.dumpInventory()

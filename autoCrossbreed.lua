@@ -20,7 +20,7 @@ local function updateLowest()
     local hasEmptySlot = false;
     -- pairs() is slower than numeric for due to function call overhead.
     -- Find lowestest tier slot.
-    for slot=1, config.farmArea, 2 do
+    for slot = 1, config.farmArea, 2 do
         local crop = farm[slot]
         if crop == nil then
             lowestTierSlot = slot;
@@ -28,7 +28,7 @@ local function updateLowest()
             hasEmptySlot = true;
             break;
         end
-        
+
         if crop.tier < lowestTier then
             lowestTier = crop.tier
             lowestTierSlot = slot
@@ -40,11 +40,11 @@ local function updateLowest()
     end
 
     -- Find lowest stats slot among the lowest tier crops.
-    for slot=1, config.farmArea, 2 do
+    for slot = 1, config.farmArea, 2 do
         local crop = farm[slot]
         if crop ~= nil then
             if crop.tier == lowestTier then
-                local stat = crop.gr+crop.ga-crop.re
+                local stat = crop.gr + crop.ga - crop.re
                 if stat < lowestStat then
                     lowestStat = stat
                     lowestStatSlot = slot
@@ -61,7 +61,7 @@ local function findSuitableFarmSlot(crop)
     if crop.tier > lowestTier then
         return lowestTierSlot
     elseif crop.tier == lowestTier then
-        if crop.gr+crop.ga-crop.re > lowestStat then
+        if crop.gr + crop.ga - crop.re > lowestStat then
             return lowestStatSlot
         end
     end
@@ -69,9 +69,9 @@ local function findSuitableFarmSlot(crop)
 end
 
 local function isWeed(crop)
-    return crop.name == "weed" or 
+    return crop.name == "weed" or
         crop.name == "Grass" or
-        crop.gr > 21 or 
+        crop.gr > 21 or
         (crop.name == "venomilia" and crop.gr > 7);
 end
 
@@ -105,7 +105,7 @@ local function checkOffspring(slot, crop)
     end
 end
 
---[[ 
+--[[
     Parent crop can get destroied by weed. There is a need to deweed and replant.
  ]]
 local function checkParent(slot, crop)
@@ -116,7 +116,7 @@ local function checkParent(slot, crop)
 end
 
 local function breedOnce()
-    for slot=1, config.farmArea, 1 do
+    for slot = 1, config.farmArea, 1 do
         gps.go(posUtil.farmToGlobal(slot))
         local crop = scanner.scan()
 
@@ -125,7 +125,7 @@ local function breedOnce()
         else
             checkParent(slot, crop);
         end
-        
+
         if action.needCharge() then
             action.charge()
         end
@@ -144,15 +144,15 @@ local function main()
     local breedRound = 0;
     while true do
         breedOnce();
-        gps.go({0,0});
+        gps.go({ 0, 0 });
         action.restockAll();
-        
+
         breedRound = breedRound + 1;
         if (config.maxBreedRound and breedRound > config.maxBreedRound) then
             print('Max round reached, end breeding.');
             break;
         end
-        
+
         if #database.getStorage() >= config.storageFarmArea then
             print('Storage full, end breeding.');
             break;

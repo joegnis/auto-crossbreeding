@@ -12,16 +12,16 @@ local config = {
     needChargeLevel = 0.2,
 
     -- the coordinate for charger
-    chargerPos = {0, 0},
+    chargerPos = { 0, 0 },
     -- the coordinate for the container contains crop sticks
-    stickContainerPos = {0, 1},
+    stickContainerPos = { 0, 1 },
     -- the coordinate for the farmland that the dislocaotr is facing
-    relayFarmlandPos = {0, 2},
+    relayFarmlandPos = { 0, 2 },
     -- the coordinate for the transvector dislocator
-    dislocatorPos = {0, 3},
+    dislocatorPos = { 0, 3 },
     -- the coordinate for the container to store seeds, products, etc
     -- has no effect unless you turn on "takeCareOfDrops" flag.
-    storagePos = {0, 5},
+    storagePos = { 0, 5 },
 
     -- the slot for spade, count from 0, count from bottom-right to top-left
     spadeSlot = 0,
@@ -57,27 +57,27 @@ local config = {
 
     -----------Do Not Change Zone------------
 
-    multifarmCentorOffset = {-3, 4},
+    multifarmCentorOffset = { -3, 4 },
 
     multifarmDislocatorPoses = {
-        {2, 0},
-        {0, -2},
-        {-2, 0},
-        {0, 2}
+        { 2, 0 },
+        { 0, -2 },
+        { -2, 0 },
+        { 0, 2 }
     },
 
     multifarmRelayFarmlandPoses = {
-        {3, 0},
-        {0, -3},
-        {-3, 0},
-        {0, 3}
+        { 3, 0 },
+        { 0, -3 },
+        { -3, 0 },
+        { 0, 3 }
     },
 
     multifarmSize = 20,
-    elevatorPos = {0, 4}
+    elevatorPos = { 0, 4 }
 }
 
-config.farmArea = config.farmSize^2
-config.storageFarmArea = config.storageFarmSize^2
+config.farmArea = config.farmSize ^ 2
+config.storageFarmArea = config.storageFarmSize ^ 2
 
 return config

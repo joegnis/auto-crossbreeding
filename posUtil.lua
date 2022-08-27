@@ -19,7 +19,7 @@ local function slotToPos(size, slot)
     else
         y = size - lastColNum - 1
     end
-    return {x, y}
+    return { x, y }
 end
 
 local function globalToFarm(globalPos)
@@ -31,7 +31,7 @@ local function farmToGlobal(farmSlot)
 end
 
 local function globalToStorage(globalPos)
-    return posToSlot(config.storageFarmSize, {-globalPos[1], globalPos[2]})
+    return posToSlot(config.storageFarmSize, { -globalPos[1], globalPos[2] })
 end
 
 local function storageToGlobal(storageSlot)
@@ -43,15 +43,16 @@ end
 local function multifarmPosInFarm(pos)
     local absX = math.abs(pos[1])
     local absY = math.abs(pos[2])
-    return (absX + absY) <= config.multifarmSize and (absX > 2 or absY > 2) and absX < config.multifarmSize-1 and absY < config.multifarmSize-1
+    return (absX + absY) <= config.multifarmSize and (absX > 2 or absY > 2) and absX < config.multifarmSize - 1 and
+        absY < config.multifarmSize - 1
 end
 
 local function globalPosToMultifarmPos(pos)
-    return {pos[1]-config.multifarmCentorOffset[1], pos[2]-config.multifarmCentorOffset[2]}
+    return { pos[1] - config.multifarmCentorOffset[1], pos[2] - config.multifarmCentorOffset[2] }
 end
 
 local function multifarmPosToGlobalPos(pos)
-    return {pos[1]+config.multifarmCentorOffset[1], pos[2]+config.multifarmCentorOffset[2]}
+    return { pos[1] + config.multifarmCentorOffset[1], pos[2] + config.multifarmCentorOffset[2] }
 end
 
 local function multifarmPosIsRelayFarmland(pos)
@@ -71,7 +72,7 @@ local function nextRelayFarmland(pos)
     for i = 1, #config.multifarmRelayFarmlandPoses do
         local rPos = config.multifarmRelayFarmlandPoses[i]
         if rPos[1] == pos[1] and rPos[2] == pos[2] and i < #config.multifarmRelayFarmlandPoses then
-            return config.multifarmRelayFarmlandPoses[i+1]
+            return config.multifarmRelayFarmlandPoses[i + 1]
         end
     end
 end
@@ -88,8 +89,8 @@ local function findOptimalDislocator(pos)
             minPosI = i
         end
     end
-    return {multifarmPosToGlobalPos(config.multifarmDislocatorPoses[minPosI]),
-            multifarmPosToGlobalPos(config.multifarmRelayFarmlandPoses[minPosI])}
+    return { multifarmPosToGlobalPos(config.multifarmDislocatorPoses[minPosI]),
+        multifarmPosToGlobalPos(config.multifarmRelayFarmlandPoses[minPosI]) }
 end
 
 return {

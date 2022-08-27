@@ -24,7 +24,7 @@ The crop sticks will end up in the third last slot. You don't need to put them m
 
 Setup for crossbreeding:
 
-***The setup below is outdated, you should check the config file to see where you should put machines and containers.***
+**_The setup below is outdated, you should check the config file to see where you should put machines and containers._**
 
 ![setup for crossbreeding](readme_images/farm-birdview.png)
 
@@ -32,7 +32,7 @@ Setup for crossbreeding:
 
 Setup for min-maxing:
 
-The setup is pretty much the same except you don't need the 13*13 farmland on the left
+The setup is pretty much the same except you don't need the 13\*13 farmland on the left
 
 Setup for spreading:
 The script is completely re-written in this forked repository.

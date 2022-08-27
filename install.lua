@@ -1,6 +1,6 @@
 local shell = require("shell")
 local filesystem = require("filesystem")
-local args = {...}
+local args = { ... }
 local scripts = {
     "action.lua",
     "database.lua",
@@ -15,7 +15,7 @@ local scripts = {
 }
 
 local function exists(filename)
-    return filesystem.exists(shell.getWorkingDirectory().."/"..filename)
+    return filesystem.exists(shell.getWorkingDirectory() .. "/" .. filename)
 end
 
 local branch
@@ -37,7 +37,7 @@ end
 
 local repo = args[3] or "https://raw.githubusercontent.com/huchenlei/auto-crossbreeding/";
 
-for i=1, #scripts do
+for i = 1, #scripts do
     shell.execute(string.format("wget -f %s%s/%s", repo, branch, scripts[i]));
 end
 

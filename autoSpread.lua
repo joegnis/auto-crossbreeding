@@ -8,18 +8,18 @@ local action = require("action")
 local config = require("config")
 local robot = require("robot");
 
-local args = {...}
+local args = { ... }
 
---[[ 
-    The script aims to transfer stats from a parent crop type to the crop type 
+--[[
+    The script aims to transfer stats from a parent crop type to the crop type
     desired but have low stats.
-    
+
     [P, _, X],
     [_, T, _],
     [X, _, P],
     where P represents parent crop, T represents target crop. X represents a non-farmland
-    block. 
-    
+    block.
+
     According to IC2 breeding rule, The offspring of 2 plants have 45% chance to be either
     the parent plants, and 10% chance to be a new type of crop.
    Y-axis
@@ -32,25 +32,22 @@ local args = {...}
       1   2   3  ...  X-axis
  ]]
 
- local targetCrop;
- -- The min stats requirement for target crop to be put into storage farm.
-  local targetCropStatsThreshold = 45;
- -- Current lowest stats of target crop in the breeding cell.
- local targetCropLowestStats;
- local targetCropLowestStatsSlot;
+local targetCrop;
+-- The min stats requirement for target crop to be put into storage farm.
+local targetCropStatsThreshold = 45;
 
- local BreedingCell = {};
- function BreedingCell.new(center)
+local BreedingCell = {};
+function BreedingCell.new(center)
     local cell = {
-        center=center,
-        stats=nil,
+        center = center,
+        stats = nil,
     };
 
-    function cell.slots() 
+    function cell.slots()
         local slots = {};
         for dx = -1, 1 do
             for dy = -1, 1 do
-                table.insert(slots, posUtil.globalToFarm({center[1] + dx, center[2] + dy}));
+                table.insert(slots, posUtil.globalToFarm({ center[1] + dx, center[2] + dy }));
             end
         end
         return slots;
@@ -67,32 +64,32 @@ local args = {...}
     end
 
     return cell;
- end
+end
 
- -- Mapping from slot# to breeding cell.
- local breedingCellMap = {};
- local breedingCells = {};
+-- Mapping from slot# to breeding cell.
+local breedingCellMap = {};
+local breedingCells = {};
 
- for x=1, config.farmSize // 3 do
-    for y=1, config.farmSize // 3 do
+for x = 1, config.farmSize // 3 do
+    for y = 1, config.farmSize // 3 do
         -- for 6x6 farm, y = 1, 4; x = 2, 5
         local centerX = 3 * (x - 1) + 2;
         local centerY = 3 * (y - 1) + 1;
-        local cell = BreedingCell.new({centerX, centerY});
-        
+        local cell = BreedingCell.new({ centerX, centerY });
+
         for _, slot in ipairs(cell.slots()) do
             breedingCellMap[slot] = cell;
         end
         table.insert(breedingCells, cell);
     end
- end
+end
 
- local CropQueue = {};
- function CropQueue.new(slotToStatMapping)
+local CropQueue = {};
+function CropQueue.new(slotToStatMapping)
     local q = {
-        stats=slotToStatMapping,
+        stats = slotToStatMapping,
     };
-    
+
     function q.updateStatsAtSlot(slot, stat)
         if q.lowestStat > stat then
             q.lowestStat = stat;
@@ -126,18 +123,18 @@ local args = {...}
 
     q.updateLowest();
     return q;
- end
+end
 
 local targetCropQueue;
 
 local function isWeed(crop)
-    return crop.name == "weed" or 
+    return crop.name == "weed" or
         crop.name == "Grass" or
-        crop.gr > 21 or 
+        crop.gr > 21 or
         (crop.name == "venomilia" and crop.gr > 7);
 end
 
- local function checkChildren(slot, crop)
+local function checkChildren(slot, crop)
     if crop.name == "air" then
         action.placeCropStick(2);
         return;
@@ -166,7 +163,7 @@ end
                 return;
             end
         end
-        
+
         if stat >= targetCropStatsThreshold then
             action.transplant(posUtil.farmToGlobal(slot), posUtil.storageToGlobal(database.nextStorageSlot()));
             database.addToStorage(crop);
@@ -174,18 +171,18 @@ end
             return;
         end
     end
-    
+
     action.deweed();
     action.placeCropStick();
- end
+end
 
- function calculateStats(crop)
+function calculateStats(crop)
     return crop.gr + crop.ga - crop.re;
- end
+end
 
- local function spreadOnce()
-    for slot=1, config.farmArea, 1 do
-        local farmPos = posUtil.farmToGlobal(slot);    
+local function spreadOnce()
+    for slot = 1, config.farmArea, 1 do
+        local farmPos = posUtil.farmToGlobal(slot);
         gps.go(farmPos);
         local crop = scanner.scan();
 
@@ -207,8 +204,8 @@ end
 end
 
 local function cleanup()
-    for slot=1, config.farmArea, 1 do
-        local farmPos = posUtil.farmToGlobal(slot);    
+    for slot = 1, config.farmArea, 1 do
+        local farmPos = posUtil.farmToGlobal(slot);
         gps.go(farmPos);
         local cell = breedingCellMap[slot];
         if cell.isChildren(slot) then
@@ -248,13 +245,13 @@ end
 local function main()
     init()
     while not spreadOnce() do
-        gps.go({0, 0})
+        gps.go({ 0, 0 })
         action.restockAll()
     end
-    gps.go({0,0})
+    gps.go({ 0, 0 })
     if #args == 1 and args[1] == "docleanup" then
         cleanup();
-        gps.go({0,0});
+        gps.go({ 0, 0 });
     end
     gps.turnTo(1)
     print("Done.\nThe Farm is filled up.")
