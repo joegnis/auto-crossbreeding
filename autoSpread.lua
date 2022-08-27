@@ -33,8 +33,6 @@ local args = { ... }
  ]]
 
 local targetCrop;
--- The min stats requirement for target crop to be put into storage farm.
-local targetCropStatsThreshold = 45;
 
 local BreedingCell = {};
 function BreedingCell.new(center)
@@ -60,7 +58,7 @@ function BreedingCell.new(center)
     end
 
     function cell.isActive()
-        return stats == nil;
+        return cell.stats == nil;
     end
 
     return cell;
@@ -134,6 +132,10 @@ local function isWeed(crop)
         (crop.name == "venomilia" and crop.gr > 7);
 end
 
+local function calculateStats(crop)
+    return crop.gr + crop.ga - crop.re;
+end
+
 local function checkChildren(slot, crop)
     if crop.name == "air" then
         action.placeCropStick(2);
@@ -158,13 +160,13 @@ local function checkChildren(slot, crop)
     if crop.name == targetCrop then
         local stat = calculateStats(crop);
         -- Populate breeding cells with high stats crop as priority.
-        if targetCropQueue.lowestStat < targetCropStatsThreshold then
+        if targetCropQueue.lowestStat < config.autoSpreadTargetStats then
             if targetCropQueue.replaceLowest(slot, stat) then
                 return;
             end
         end
 
-        if stat >= targetCropStatsThreshold then
+        if stat >= config.autoSpreadTargetStats then
             action.transplant(posUtil.farmToGlobal(slot), posUtil.storageToGlobal(database.nextStorageSlot()));
             database.addToStorage(crop);
             action.placeCropStick(2);
@@ -174,10 +176,6 @@ local function checkChildren(slot, crop)
 
     action.deweed();
     action.placeCropStick();
-end
-
-function calculateStats(crop)
-    return crop.gr + crop.ga - crop.re;
 end
 
 local function spreadOnce()
@@ -191,7 +189,7 @@ local function spreadOnce()
             checkChildren(slot, crop);
         end
 
-        if #database.getStorage() >= 81 then
+        if #database.getStorage() >= config.farmArea then
             return true;
         end
 

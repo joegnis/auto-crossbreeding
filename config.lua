@@ -6,7 +6,7 @@ local config = {
     farmSize = 6,
     -- the side length of the new crop storage farm
     -- the recommend value is 13 because it's just enough to hold all the crops in GTNH
-    storageFarmSize = 9, -- don't change
+    storageFarmSize = 9,
 
     -- below which percentage should the robot to charge itself.
     needChargeLevel = 0.2,
@@ -34,6 +34,12 @@ local config = {
     -- Max breed round before termination. Used on server to avoid left-alone robot endlessly
     -- consuming resources. Set to nil for infinite loop.
     maxBreedRound = 1000,
+    -- Target stats while autoStat (grow + gain - resist)
+    -- 52 = 21(max gr) + 31(max ga) - 0 (min re)
+    autoStatTargetStats = 52,
+    -- Target stats while spreading
+    -- Higher this is, slower the spreading would be
+    autoSpreadTargetStats = 52,
 
     -- flags
 
