@@ -1,12 +1,15 @@
--- Set farmSize=6, and storageFarmSize=9 in config.lua to use this script.
-
-local database = require("database")
+local event = require("event")
 local gps = require("gps")
 local posUtil = require("posUtil")
 local scanner = require("scanner")
 local action = require("action")
 local config = require("config")
 local robot = require("robot");
+
+local BREED_FARM_SIZE = config.autoSpread.breedFarmSize
+local STORAGE_FARM_SIZE = config.autoSpread.storageFarmSize
+local BREED_FARM_AREA = BREED_FARM_SIZE ^ 2
+local STORAGE_FARM_AREA = STORAGE_FARM_SIZE ^ 2
 
 local args = { ... }
 
@@ -33,6 +36,11 @@ local args = { ... }
  ]]
 
 local targetCrop;
+local targetCropQueue;
+-- Mapping from slot# to breeding cell.
+local breedingCellMap = {};
+local breedingCells = {};
+local nextStorageSlot = 1
 
 local BreedingCell = {};
 function BreedingCell.new(center)
@@ -45,14 +53,15 @@ function BreedingCell.new(center)
         local slots = {};
         for dx = -1, 1 do
             for dy = -1, 1 do
-                table.insert(slots, posUtil.globalToFarm({ center[1] + dx, center[2] + dy }));
+                table.insert(slots, posUtil.globalToFarm(
+                    { center[1] + dx, center[2] + dy }, BREED_FARM_SIZE));
             end
         end
         return slots;
     end
 
     function cell.isChildren(slot)
-        local pos = posUtil.farmToGlobal(slot);
+        local pos = posUtil.farmToGlobal(slot, BREED_FARM_SIZE);
         local c = cell.center;
         return math.abs(c[1] - pos[1]) + math.abs(c[2] - pos[2]) == 1;
     end
@@ -62,24 +71,6 @@ function BreedingCell.new(center)
     end
 
     return cell;
-end
-
--- Mapping from slot# to breeding cell.
-local breedingCellMap = {};
-local breedingCells = {};
-
-for x = 1, config.farmSize // 3 do
-    for y = 1, config.farmSize // 3 do
-        -- for 6x6 farm, y = 1, 4; x = 2, 5
-        local centerX = 3 * (x - 1) + 2;
-        local centerY = 3 * (y - 1) + 1;
-        local cell = BreedingCell.new({ centerX, centerY });
-
-        for _, slot in ipairs(cell.slots()) do
-            breedingCellMap[slot] = cell;
-        end
-        table.insert(breedingCells, cell);
-    end
 end
 
 local CropQueue = {};
@@ -111,7 +102,10 @@ function CropQueue.new(slotToStatMapping)
     Returns true if the replacement is successful. ]]
     function q.replaceLowest(slot, stat)
         if stat > q.lowestStat then
-            action.transplant(posUtil.farmToGlobal(slot), posUtil.farmToGlobal(q.lowestStatSlot));
+            action.transplant(
+                posUtil.farmToGlobal(slot, BREED_FARM_SIZE),
+                posUtil.farmToGlobal(q.lowestStatSlot, BREED_FARM_SIZE)
+            );
             q.stats[q.lowestStatSlot] = stat;
             q.updateLowest();
             return true;
@@ -123,17 +117,19 @@ function CropQueue.new(slotToStatMapping)
     return q;
 end
 
-local targetCropQueue;
-
 local function isWeed(crop)
     return crop.name == "weed" or
         crop.name == "Grass" or
-        crop.gr > 21 or
+        crop.gr > 23 or
         (crop.name == "venomilia" and crop.gr > 7);
 end
 
-local function calculateStats(crop)
+local function calculateBreedStats(crop)
     return crop.gr + crop.ga - crop.re;
+end
+
+local function calculateSpreadStats(crop)
+    return crop.gr + crop.ga
 end
 
 local function checkChildren(slot, crop)
@@ -158,20 +154,51 @@ local function checkChildren(slot, crop)
     end
 
     if crop.name == targetCrop then
-        local stat = calculateStats(crop);
+        local breedStats = calculateBreedStats(crop);
         -- Populate breeding cells with high stats crop as priority.
-        if targetCropQueue.lowestStat < config.autoSpreadTargetStats then
-            if targetCropQueue.replaceLowest(slot, stat) then
+        if targetCropQueue.lowestStat < config.autoSpread.breedTargetStats then
+            print(string.format("Updating current breeding crop (lowest=%d) with crop with  gr=%d, ga=%d, re=%d",
+                targetCropQueue.lowestStat, crop.gr, crop.ga, crop.re))
+            if targetCropQueue.replaceLowest(slot, breedStats) then
                 return;
             end
         end
 
-        if stat >= config.autoSpreadTargetStats then
-            action.transplant(posUtil.farmToGlobal(slot), posUtil.storageToGlobal(database.nextStorageSlot()));
-            database.addToStorage(crop);
+        local spreadStats = calculateSpreadStats(crop)
+        if spreadStats >= config.autoSpread.spreadTargetStats then
+            print(string.format("Found new offspring with gr=%d, ga=%d, re=%d, to transport",
+                crop.gr, crop.ga, crop.re))
+            local firstFailed = false
+            local transplantSuccess = action.transplantToStorageFarm(
+                posUtil.farmToGlobal(slot, BREED_FARM_SIZE),
+                posUtil.storageToGlobal(nextStorageSlot, STORAGE_FARM_SIZE),
+                function ()
+                    firstFailed = true
+                    local nextSlot = nextStorageSlot
+                    if nextSlot <= STORAGE_FARM_AREA then
+                        nextStorageSlot = nextStorageSlot + 1
+                        return posUtil.storageToGlobal(nextSlot, STORAGE_FARM_SIZE)
+                    end
+                end
+            );
+            if not firstFailed then
+                nextStorageSlot = nextStorageSlot + 1
+            end
+            if transplantSuccess then
+                print(string.format("Transported crop to storage slot %d",
+                    nextStorageSlot - 1))
+            else
+                print(string.format("Failed transporting crop to storage slot %d",
+                    nextStorageSlot - 1))
+            end
             action.placeCropStick(2);
             return;
         end
+
+        print(string.format(
+            "Current crop's stats (gr=%d, ga=%d, re=%d) are lower than target (%d). Destroying...",
+            crop.gr, crop.ga, crop.re, config.autoSpread.spreadTargetStats
+        ))
     end
 
     action.deweed();
@@ -179,8 +206,8 @@ local function checkChildren(slot, crop)
 end
 
 local function spreadOnce()
-    for slot = 1, config.farmArea, 1 do
-        local farmPos = posUtil.farmToGlobal(slot);
+    for slot = 1, BREED_FARM_AREA, 1 do
+        local farmPos = posUtil.farmToGlobal(slot, BREED_FARM_SIZE);
         gps.go(farmPos);
         local crop = scanner.scan();
 
@@ -189,7 +216,8 @@ local function spreadOnce()
             checkChildren(slot, crop);
         end
 
-        if #database.getStorage() >= config.farmArea then
+        if nextStorageSlot > STORAGE_FARM_AREA then
+            print(string.format("Storage farm is full (%d). Stopping.", STORAGE_FARM_AREA))
             return true;
         end
 
@@ -202,8 +230,8 @@ local function spreadOnce()
 end
 
 local function cleanup()
-    for slot = 1, config.farmArea, 1 do
-        local farmPos = posUtil.farmToGlobal(slot);
+    for slot = 1, BREED_FARM_AREA, 1 do
+        local farmPos = posUtil.farmToGlobal(slot, BREED_FARM_SIZE);
         gps.go(farmPos);
         local cell = breedingCellMap[slot];
         if cell.isChildren(slot) then
@@ -217,16 +245,29 @@ local function cleanup()
 end
 
 local function init()
-    gps.save();
+    for x = 1, BREED_FARM_SIZE // 3 do
+        for y = 1, BREED_FARM_SIZE // 3 do
+            -- for 6x6 farm, y = 1, 4; x = 2, 5
+            local centerX = 3 * (x - 1) + 2;
+            local centerY = 3 * (y - 1) + 1;
+            local cell = BreedingCell.new({ centerX, centerY });
 
-    local stats = {};
+            for _, slot in ipairs(cell.slots()) do
+                breedingCellMap[slot] = cell;
+            end
+            table.insert(breedingCells, cell);
+        end
+    end
+
+    gps.save();
+    local breedStats = {};
     for i, cell in ipairs(breedingCells) do
         local pos = cell.center;
-        local slot = posUtil.globalToFarm(pos);
+        local slot = posUtil.globalToFarm(pos, BREED_FARM_SIZE);
 
         gps.go(pos);
         local crop = scanner.scan();
-        stats[slot] = calculateStats(crop);
+        breedStats[slot] = calculateBreedStats(crop);
 
         if i == 1 then
             targetCrop = crop.name;
@@ -234,7 +275,7 @@ local function init()
         end
     end
 
-    targetCropQueue = CropQueue.new(stats);
+    targetCropQueue = CropQueue.new(breedStats);
 
     action.restockAll();
     gps.resume();
@@ -245,6 +286,11 @@ local function main()
     while not spreadOnce() do
         gps.go({ 0, 0 })
         action.restockAll()
+
+        local id = event.pull(0.5, "interrupted")
+        if id ~= nil then
+            break
+        end
     end
     gps.go({ 0, 0 })
     if #args == 1 and args[1] == "docleanup" then

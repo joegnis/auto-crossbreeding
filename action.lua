@@ -1,8 +1,6 @@
 local component = require("component")
 local robot = require("robot")
 local computer = require("computer")
-local inventory_controller = component.inventory_controller
-
 local os = require("os")
 local sides = require("sides")
 local gps = require("gps")
@@ -10,6 +8,8 @@ local config = require("config")
 local signal = require("signal")
 local scanner = require("scanner")
 local posUtil = require("posUtil")
+
+local inventory_controller = component.inventory_controller
 
 local function needCharge()
     return computer.energy() / computer.maxEnergy() < config.needChargeLevel
@@ -95,7 +95,14 @@ local function restockAll()
     gps.resume()
 end
 
+--[[
+    Puts number `count` of crop sticks below the robot
+
+    Returns false if it could not place the first stick, true otherwise
+    Returns false even if it has successfully place double sticks
+]]
 local function placeCropStick(count)
+    local placed = true
     if count == nil then
         count = 1
     end
@@ -105,11 +112,19 @@ local function placeCropStick(count)
     end
     robot.select(robot.inventorySize() + config.stickSlot)
     inventory_controller.equip()
-    for _ = 1, count do
-        robot.useDown()
+
+    local _, interact_result = robot.useDown()
+    if interact_result ~= "item_placed" then
+        placed = false
+    else
+        for _ = 1, count - 1 do
+            robot.useDown()
+        end
     end
+
     inventory_controller.equip()
     robot.select(selectedSlot)
+    return placed
 end
 
 local function deweed()
@@ -163,6 +178,82 @@ local function transplant(src, dest)
     gps.resume()
     robot.select(selectedSlot)
 end
+
+--[[
+    Transfers a crop using transvector
+
+    It tries to put crop at dest, if it could not, it tries to put crop
+    at dest provided by iterator iterAltDest
+
+    The process:
+    1. With binder in hand, click transvector
+    2. Click the thing you want to swap
+    3. Send a redstone signal to transvector
+]]
+local function transplantToStorageFarm(src, dest, iterAltDest)
+    iterAltDest = iterAltDest or function() return nil end
+    local selectedSlot = robot.select()
+    gps.save()
+    robot.select(robot.inventorySize() + config.binderSlot)
+    inventory_controller.equip()
+
+    -- transfer the crop to the relay location
+    gps.go(config.dislocatorPos)
+    robot.useDown(sides.down)
+    gps.go(src)
+    robot.useDown(sides.down, true) -- sneak-right-click on crops to prevent harvesting
+    gps.go(config.dislocatorPos)
+    signal.pulseDown()
+
+    -- transfer the crop to the destination
+    robot.useDown(sides.down)
+    gps.go(dest)
+    local placeSuccess = true
+    -- Uses scanner to avoid harvesting crops
+    if scanner.scan().name ~= 'air' or not placeCropStick() then
+        local prevDest = dest
+        local altDest = iterAltDest()
+        print(string.format(
+            "Failed to place crop at %s, looking for another...",
+            posUtil.posToString(prevDest)
+        ))
+        while altDest do
+            gps.go(altDest)
+            if scanner.scan().name == 'air' and placeCropStick() then
+                print(string.format(
+                    "Found slot %d to place crop",
+                    posUtil.globalToStorage(altDest)
+                ))
+                break
+            end
+            prevDest = altDest
+            altDest = iterAltDest()
+        end
+        if not altDest then
+            -- Fails to place crop and we have no more storage slot
+            placeSuccess = false
+        end
+    end
+    if placeSuccess then
+        robot.useDown(sides.down, true)
+        gps.go(config.dislocatorPos)
+        signal.pulseDown()
+
+        -- destroy the original crop
+        gps.go(config.relayFarmlandPos)
+        deweed()
+        robot.swingDown()
+        if config.takeCareOfDrops then
+            robot.suckDown()
+        end
+    end
+
+    inventory_controller.equip()
+    gps.resume()
+    robot.select(selectedSlot)
+    return placeSuccess
+end
+
 
 local function transplantToMultifarm(src, dest)
     local globalDest = posUtil.multifarmPosToGlobalPos(dest)
@@ -237,5 +328,6 @@ return {
     deweed = deweed,
     transplant = transplant,
     transplantToMultifarm = transplantToMultifarm,
+    transplantToStorageFarm = transplantToStorageFarm,
     destroyAll = destroyAll
 }

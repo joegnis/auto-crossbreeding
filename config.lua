@@ -37,9 +37,16 @@ local config = {
     -- Target stats while autoStat (grow + gain - resist)
     -- 52 = 21(max gr) + 31(max ga) - 0 (min re)
     autoStatTargetStats = 52,
-    -- Target stats while spreading
-    -- Higher this is, slower the spreading would be
-    autoSpreadTargetStats = 52,
+    autoSpread = {
+        breedFarmSize = 6,
+        storageFarmSize = 11,
+        -- gr + ga
+        -- When spreading we don't need to worry about resist, which affects the chance
+        -- of successful crossbreeding
+        spreadTargetStats = 50,
+        -- gr + ga - re
+        breedTargetStats = 52,
+    },
 
     -- flags
 
@@ -59,7 +66,8 @@ local config = {
     bestStatWhileSpreading = true,
 
     -- assume there is no bare stick in the farm, should increace speed.
-    assumeNoBareStick = true,
+    -- On the other side, turning it on along with weed-ex makes sure weeds are taken care of
+    assumeNoBareStick = false,
 
     -----------Do Not Change Zone------------
 

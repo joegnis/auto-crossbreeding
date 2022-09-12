@@ -1,5 +1,7 @@
 local config = require("config")
 
+local M = {}
+
 local function posToSlot(size, pos)
     local lastColNum
     if pos[1] % 2 == 1 then
@@ -22,40 +24,48 @@ local function slotToPos(size, slot)
     return { x, y }
 end
 
-local function globalToFarm(globalPos)
-    return posToSlot(config.farmSize, globalPos)
+function M.posToString(globalPos)
+    return string.format("{%d, %d}", globalPos[1], globalPos[2])
 end
 
-local function farmToGlobal(farmSlot)
-    return slotToPos(config.farmSize, farmSlot)
+function M.globalToFarm(globalPos, farmSize)
+    farmSize = farmSize or config.farmSize
+    return posToSlot(farmSize, globalPos)
 end
 
-local function globalToStorage(globalPos)
-    return posToSlot(config.storageFarmSize, { -globalPos[1], globalPos[2] })
+function M.farmToGlobal(farmSlot, farmSize)
+    farmSize = farmSize or config.farmSize
+    return slotToPos(farmSize, farmSlot)
 end
 
-local function storageToGlobal(storageSlot)
-    local globalPos = slotToPos(config.storageFarmSize, storageSlot)
+function M.globalToStorage(globalPos, farmSize)
+    farmSize = farmSize or config.storageFarmSize
+    return posToSlot(farmSize, { -globalPos[1], globalPos[2] })
+end
+
+function M.storageToGlobal(storageSlot, farmSize)
+    farmSize = farmSize or config.storageFarmSize
+    local globalPos = slotToPos(farmSize, storageSlot)
     globalPos[1] = -globalPos[1];
     return globalPos
 end
 
-local function multifarmPosInFarm(pos)
+function M.multifarmPosInFarm(pos)
     local absX = math.abs(pos[1])
     local absY = math.abs(pos[2])
     return (absX + absY) <= config.multifarmSize and (absX > 2 or absY > 2) and absX < config.multifarmSize - 1 and
         absY < config.multifarmSize - 1
 end
 
-local function globalPosToMultifarmPos(pos)
+function M.globalPosToMultifarmPos(pos)
     return { pos[1] - config.multifarmCentorOffset[1], pos[2] - config.multifarmCentorOffset[2] }
 end
 
-local function multifarmPosToGlobalPos(pos)
+function M.multifarmPosToGlobalPos(pos)
     return { pos[1] + config.multifarmCentorOffset[1], pos[2] + config.multifarmCentorOffset[2] }
 end
 
-local function multifarmPosIsRelayFarmland(pos)
+function M.multifarmPosIsRelayFarmland(pos)
     for i = 1, #config.multifarmRelayFarmlandPoses do
         local rPos = config.multifarmRelayFarmlandPoses[i]
         if rPos[1] == pos[1] and rPos[2] == pos[2] then
@@ -65,7 +75,7 @@ local function multifarmPosIsRelayFarmland(pos)
     return false
 end
 
-local function nextRelayFarmland(pos)
+function M.nextRelayFarmland(pos)
     if pos == nil then
         return config.multifarmRelayFarmlandPoses[1]
     end
@@ -77,7 +87,7 @@ local function nextRelayFarmland(pos)
     end
 end
 
-local function findOptimalDislocator(pos)
+function M.findOptimalDislocator(pos)
     -- return: {dislocatorGlobalPos, relayFarmlandGlobalPos}
     local minDistance = 100
     local minPosI
@@ -89,19 +99,8 @@ local function findOptimalDislocator(pos)
             minPosI = i
         end
     end
-    return { multifarmPosToGlobalPos(config.multifarmDislocatorPoses[minPosI]),
-        multifarmPosToGlobalPos(config.multifarmRelayFarmlandPoses[minPosI]) }
+    return { M.multifarmPosToGlobalPos(config.multifarmDislocatorPoses[minPosI]),
+        M.multifarmPosToGlobalPos(config.multifarmRelayFarmlandPoses[minPosI]) }
 end
 
-return {
-    globalToFarm = globalToFarm,
-    farmToGlobal = farmToGlobal,
-    globalToStorage = globalToStorage,
-    storageToGlobal = storageToGlobal,
-    multifarmPosInFarm = multifarmPosInFarm,
-    multifarmPosIsRelayFarmland = multifarmPosIsRelayFarmland,
-    globalPosToMultifarmPos = globalPosToMultifarmPos,
-    multifarmPosToGlobalPos = multifarmPosToGlobalPos,
-    findOptimalDislocator = findOptimalDislocator,
-    nextRelayFarmland = nextRelayFarmland
-}
+return M
