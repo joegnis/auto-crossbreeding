@@ -11,7 +11,8 @@ local scripts = {
     "autoStat.lua",
     "autoCrossbreed.lua",
     "autoSpread.lua",
-    "install.lua"
+    "install.lua",
+    "utils.lua",
 }
 
 local function exists(filename)
