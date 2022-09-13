@@ -48,6 +48,11 @@ local config = {
         breedTargetStats = 52,
     },
 
+    autoCrossBreed = {
+        breedFarmSize = 9,
+        storageFarmSize = 13,
+    },
+
     -- flags
 
     -- if you turn on this flag, the robot will try to take care of the item drops

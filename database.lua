@@ -50,36 +50,50 @@ local function setLastMultifarmPos(pos)
     lastMultifarmPos = pos
 end
 
-local function scanFarm()
+local function scanFarm(farmSize)
+    local farmArea = farmSize ^ 2
+
     gps.save()
-    for slot = 1, config.farmArea, 2 do
-        gps.go(posUtil.farmToGlobal(slot))
+    local countCrop = 0
+    local countAir = 0
+    -- Every other slot so this function scans like a chessboard
+    for slot = 1, farmArea, 2 do
+        gps.go(posUtil.farmToGlobal(slot, farmSize))
         local cropInfo = scanner.scan()
+        farm[slot] = cropInfo
         if cropInfo.name == "air" then
             cropInfo.tier = 0
             cropInfo.gr = 0
             cropInfo.ga = 0
             cropInfo.re = 100
-            farm[slot] = cropInfo
+            countAir = countAir + 1
         elseif cropInfo.isCrop then
-            farm[slot] = cropInfo
+            countCrop = countCrop + 1
         end
     end
+    print(string.format("Scanned breed farm's crossbreeding parents' locations: %d crops, %d air, %d other",
+        countCrop, countAir, farmArea // 2 + 1 - countCrop - countAir))
     gps.resume()
 end
 
-local function scanStorage()
+local function scanStorage(farmSize)
+    local farmArea = farmSize ^ 2
+
     gps.save()
-    for slot = 1, config.storageFarmArea do
-        gps.go(posUtil.storageToGlobal(slot))
+    local countCrop = 0
+    for slot = 1, farmArea do
+        gps.go(posUtil.storageToGlobal(slot, farmSize))
         local cropInfo = scanner.scan()
         if cropInfo.name ~= "air" then
             storage[slot] = cropInfo
             reverseStorage[cropInfo.name] = slot
+            countCrop = countCrop + 1
         else
+            -- Stops scanning when finding the first air block. May improve.
             break
         end
     end
+    print(string.format("Scanned stroage farm: %d crops", countCrop))
     gps.resume()
 end
 

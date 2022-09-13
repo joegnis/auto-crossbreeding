@@ -50,11 +50,9 @@ local function restockStick(resume)
     end
     gps.go(config.stickContainerPos)
     robot.select(robot.inventorySize() + config.stickSlot)
-    for i = 1, inventory_controller.getInventorySize(sides.down) do
-        inventory_controller.suckFromSlot(sides.down, i, 64 - robot.count())
-        if robot.count() == 64 then
-            break
-        end
+    -- Can handle StorageDrawer
+    while robot.count() < 64 and robot.suckDown(64 - robot.count()) do
+        ;
     end
     if resume ~= false then
         gps.resume()
