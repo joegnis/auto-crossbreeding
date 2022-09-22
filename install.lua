@@ -8,7 +8,6 @@ local scripts = {
     "autoSpread.lua",
     "autoStat.lua",
     "config.lua",
-    "database.lua",
     "gps.lua",
     "posUtil.lua",
     "signal.lua",
