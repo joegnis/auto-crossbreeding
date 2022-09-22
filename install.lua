@@ -5,6 +5,8 @@ local scripts = {
     "action.lua",
     "autoCrossbreed.lua",
     "autoCrossbreedConfig.lua",
+    "autoSpread.lua",
+    "autoStat.lua",
     "config.lua",
     "database.lua",
     "gps.lua",
@@ -17,8 +19,8 @@ local scripts = {
     "farms/BreedFarm.lua",
     "farms/CrossbreedFarm.lua",
     "farms/StorageFarm.lua",
-    "tests_in_game/test_Action.lua",
-    "tests_in_game/test_autoCrossbreed.lua",
+    "tests_in_game/test_action.lua",
+    "tests_in_game/test_autocrossbreed.lua",
     "tests_in_game/test_gps.lua",
     "tests_in_game/test_posUtil.lua",
     "tests_in_game/test_StorageFarm.lua",
@@ -59,7 +61,7 @@ local function downloadFile(file)
 end
 
 for _, dir in ipairs(directories) do
-    filesystem.makeDirectory(dir)
+    shell.execute("mkdir " .. dir)
 end
 for _, script in ipairs(scripts) do
     downloadFile(script)
