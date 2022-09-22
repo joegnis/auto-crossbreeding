@@ -1,16 +1,9 @@
 local config = {
     -- be aware that each config should be followed by a comma
-
-    -- the side length of the crossbreeding farm
-    -- the recommend value is 9 because it's crop-matron's working area size.
-    farmSize = 6,
-    -- the side length of the new crop storage farm
-    -- the recommend value is 13 because it's just enough to hold all the crops in GTNH
-    storageFarmSize = 9,
+    -- farm size config for each mode is moved to separate files
 
     -- below which percentage should the robot to charge itself.
     needChargeLevel = 0.2,
-
     -- the coordinate for charger
     chargerPos = { 0, 0 },
     -- the coordinate for the container contains crop sticks
@@ -34,24 +27,6 @@ local config = {
     -- Max breed round before termination. Used on server to avoid left-alone robot endlessly
     -- consuming resources. Set to nil for infinite loop.
     maxBreedRound = 1000,
-    -- Target stats while autoStat (grow + gain - resist)
-    -- 52 = 21(max gr) + 31(max ga) - 0 (min re)
-    autoStatTargetStats = 52,
-    autoSpread = {
-        breedFarmSize = 6,
-        storageFarmSize = 11,
-        -- gr + ga
-        -- When spreading we don't need to worry about resist, which affects the chance
-        -- of successful crossbreeding
-        spreadTargetStats = 50,
-        -- gr + ga - re
-        breedTargetStats = 52,
-    },
-
-    autoCrossBreed = {
-        breedFarmSize = 9,
-        storageFarmSize = 13,
-    },
 
     -- flags
 
@@ -60,10 +35,6 @@ local config = {
     -- if you are using this scrip set to do everything, there isn't realy any point to use this.
     -- this option and the option below isn't actively maintained because I don't use this function.
     takeCareOfDrops = true,
-
-    -- if you turn on this flag, you need to prepare a storage farm
-    -- the recommend size is 13, which you change above.
-    keepNewCropWhileMinMaxing = false,
 
     -- if you turn on this flag, the robot will only choose the crop with
     -- gr > 21, < 24, ga == 31, re == 0 to spread.
@@ -95,8 +66,5 @@ local config = {
     multifarmSize = 20,
     elevatorPos = { 0, 4 }
 }
-
-config.farmArea = config.farmSize ^ 2
-config.storageFarmArea = config.storageFarmSize ^ 2
 
 return config

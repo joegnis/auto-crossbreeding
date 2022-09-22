@@ -5,7 +5,7 @@ local robot = require "robot"
 local component = require "component"
 local gps = require "gps"
 local posUtil = require "posUtil"
-local action  = require "action"
+local action  = require "Action"
 local config = require "config"
 
 local INVENTORY_CONTROLLER = component.inventory_controller
@@ -87,5 +87,3 @@ local function testTransplantSkipBlocks()
     end
     gps.go({0, 0})
 end
-
-testTransplantSkipBlocks()

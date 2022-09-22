@@ -4,328 +4,381 @@ local computer = require("computer")
 local os = require("os")
 local sides = require("sides")
 local gps = require("gps")
-local config = require("config")
 local signal = require("signal")
-local scanner = require("scanner")
+
 local posUtil = require("posUtil")
+local utils = require("utils")
+local Deque = utils.Deque
+local globalConfig = require("config")
 
-local inventory_controller = component.inventory_controller
+local geolyzer = component.geolyzer
+local inventoryController = component.inventory_controller
 
-local function needCharge()
-    return computer.energy() / computer.maxEnergy() < config.needChargeLevel
+
+---@class Action
+---@field chargerPos Position
+---@field cropSticksContainerPos Position
+---@field relayFarmlandPos Position
+---@field dislocatorPos Position
+---@field storagePos Position
+---@field spadeSlot integer
+---@field binderSlot integer
+---@field cropStickSlot integer
+---@field storageStopSlot integer
+---@field takeCareOfDrops boolean
+---@field assumeNoBareStick boolean
+---@field needChargeLevel number
+---@field getBreedStatScore_ fun(ga: integer, gr: integer, re: integer): integer
+---@field getSpreadStatScore_ fun(ga: integer, gr: integer, re: integer): integer
+---@field curEquip_ string
+local Action = {}
+
+function Action:new(o)
+    o = o or {}
+    self.__index = self
+    o = setmetatable(o, self)
+
+    local inventorySize = robot.inventorySize()
+    o.chargerPos = o.chargerPos or globalConfig.chargerPos
+    o.cropSticksContainerPos = o.cropSticksContainerPos or globalConfig.stickContainerPos
+    o.relayFarmlandPos = o.relayFarmlandPos or globalConfig.relayFarmlandPos
+    o.dislocatorPos = o.dislocatorPos or globalConfig.dislocatorPos
+    o.storagePos = o.storagePos or globalConfig.storagePos
+    o.spadeSlot = inventorySize + (o.spadeSlotOffset or globalConfig.spadeSlot)
+    o.binderSlot = inventorySize + (o.binderSlotOffset or globalConfig.binderSlot)
+    o.cropStickSlot = inventorySize + (o.cropStickSlotOffset or globalConfig.stickSlot)
+    o.storageStopSlot = inventorySize + (o.storageStopSlotOffset or globalConfig.storageStopSlot)
+    o.takeCareOfDrops = o.takeCareOfDrops or globalConfig.takeCareOfDrops
+    o.assumeNoBareStick = o.assumeNoBareStick or globalConfig.assumeNoBareStick
+    o.needChargeLevel = o.needChargeLevel or globalConfig.needChargeLevel
+
+    return o
 end
 
-local function fullyCharged()
-    return computer.energy() / computer.maxEnergy() > 0.99
-end
-
-local function fullInventory()
-    for i = 1, robot.inventorySize() do
-        if robot.count(i) == 0 then
-            return false
-        end
-    end
-    return true
-end
-
-local function charge(resume)
-    if resume ~= false then
-        gps.save()
-    end
-
-    gps.go(config.chargerPos)
-    repeat
-        os.sleep(0.5)
-    until fullyCharged()
-
-    if resume ~= false then
-        gps.resume()
-    end
-end
-
-local function restockStick(resume)
-    local selectedSlot = robot.select()
-    if resume ~= false then
-        gps.save()
-    end
-    gps.go(config.stickContainerPos)
-    robot.select(robot.inventorySize() + config.stickSlot)
-    -- Can handle StorageDrawer
-    while robot.count() < 64 and robot.suckDown(64 - robot.count()) do
-        ;
-    end
-    if resume ~= false then
-        gps.resume()
-    end
-    robot.select(selectedSlot)
-end
-
-local function dumpInventory(resume)
-    local selectedSlot = robot.select()
-    if resume ~= false then
-        gps.save()
-    end
-    gps.go(config.storagePos)
-    for i = 1, robot.inventorySize() + config.storageStopSlot do
-        if robot.count(i) > 0 then
-            robot.select(i)
-            for e = 1, inventory_controller.getInventorySize(sides.down) do
-                if inventory_controller.getStackInSlot(sides.down, e) == nil then
-                    inventory_controller.dropIntoSlot(sides.down, e)
-                    break;
+---Scans a farm with slots and positions provided by an iterator.
+---Provides initial parameters for farms' constructor.
+---Returns slot->scanned info dict, crop name->slot dict, and
+---empty farmland slots deque.
+---Can check if a slot really has a farmblock beneath by trying to
+---place a crop stick. This can slow down the process but it enables
+---the support for water block, non-farmblock etc.
+---If checkFarmland is true, only real farm land slots will be added to
+---the deque.
+---@param iterSlotAndPos fun(): integer, Position
+---@param checkFarmland boolean?
+---@return table<integer, ScannedInfo>, table<string, integer>, Deque
+function Action:scanFarm(iterSlotAndPos, checkFarmland)
+    checkFarmland = checkFarmland or false
+    local cropsInfo = {}
+    local reverseCropsInfo = {}
+    local emptyFarmlands = Deque:new()
+    local countCrops = 0
+    local countBlocks = 0
+    for slot, pos in iterSlotAndPos do
+        gps.go(pos)
+        local scannedInfo = self:scanBelow()
+        if scannedInfo.isCrop then
+            cropsInfo[slot] = scannedInfo
+            reverseCropsInfo[scannedInfo.name] = slot
+            countCrops = countCrops + 1
+        elseif utils.isWeed(scannedInfo) then
+            self:deweed()
+        else
+            if scannedInfo.name == "air" then
+                if checkFarmland then
+                    if self:placeCropSticks() then
+                        emptyFarmlands:pushFirst(slot)
+                        self:breakCrop()
+                    end
+                else
+                    emptyFarmlands:pushFirst(slot)
                 end
             end
         end
+        countBlocks = countBlocks + 1
     end
-    if resume ~= false then
-        gps.resume()
-    end
-    robot.select(selectedSlot)
+    return cropsInfo, reverseCropsInfo, emptyFarmlands
 end
 
-local function restockAll()
-    gps.save()
-    if config.takeCareOfDrops then
-        dumpInventory()
-    end
-    restockStick(false)
-    charge(false)
-    gps.resume()
-end
-
---[[
-    Puts number `count` of crop sticks below the robot
-
-    Returns false if it could not place the first stick, true otherwise
-    Returns false even if it has successfully place double sticks
-]]
-local function placeCropStick(count)
-    local placed = true
-    if count == nil then
-        count = 1
-    end
-    local selectedSlot = robot.select()
-    if robot.count(robot.inventorySize() + config.stickSlot) < count + 1 then
-        restockStick()
-    end
-    robot.select(robot.inventorySize() + config.stickSlot)
-    inventory_controller.equip()
-
-    local _, interact_result = robot.useDown()
-    if interact_result ~= "item_placed" then
-        placed = false
+---@alias ScannedInfo
+---| { isCrop: 'true', name: string, gr: integer, ga: integer, re: integer, tier: integer }
+---| { isCrop: 'false', name: '"weed"' }
+---| { isCrop: 'false', name: '"air"' }
+---| { isCrop: 'false', name: '"cropStick"' }
+---| { isCrop: 'false', name: string }
+---Scans the block below the robot
+---@return ScannedInfo
+function Action:scanBelow()
+    local rawResult = geolyzer.analyze(sides.down)
+    if rawResult.name == "minecraft:air" or rawResult.name == "GalacticraftCore:tile.brightAir" then
+        return { isCrop = false, name = "air" }
+    elseif rawResult.name == "IC2:blockCrop" then
+        if rawResult["crop:name"] == nil then
+            return { isCrop = false, name = "cropStick" }
+        elseif rawResult["crop:name"] == "weed" then
+            return { isCrop = false, name = "weed" }
+        else
+            return {
+                isCrop = true,
+                name = rawResult["crop:name"],
+                gr = rawResult["crop:growth"],
+                ga = rawResult["crop:gain"],
+                re = rawResult["crop:resistance"],
+                tier = rawResult["crop:tier"]
+            }
+        end
     else
-        for _ = 1, count - 1 do
-            robot.useDown()
+        return { isCrop = false, name = rawResult.name }
+    end
+end
+
+function Action:placeCropSticks(placeDouble)
+    placeDouble = placeDouble or false
+    local count = placeDouble and 2 or 1
+
+    if robot.count(self.cropStickSlot) < count then
+        self:doAfterSavePos(function()
+            self:restockCropSticks()
+        end)
+    end
+
+    return self:doAfterSafeEquip(self.cropStickSlot, function()
+        local placed = true
+        local _, interact_result = robot.useDown()
+        if interact_result ~= "item_placed" then
+            placed = false
+        else
+            for _ = 1, count - 1 do
+                robot.useDown()
+            end
+        end
+        return placed
+    end)
+end
+
+function Action:breakCrop()
+    self:doAfterSavePos(function()
+        self:dumpLootsIfNeeded()
+    end)
+    self:doAfterSafeEquip(self.spadeSlot, function()
+        robot.useDown()
+        robot.swingDown()
+        if self.takeCareOfDrops then
+            robot.suckDown()
+        end
+    end)
+end
+
+function Action:deweed()
+    self:doAfterSafeEquip(self.spadeSlot, function()
+        robot.useDown()
+        robot.swingDown()
+        if self.takeCareOfDrops then
+            robot.suckDown()
+        end
+    end)
+end
+
+---Dumps all items in internal inventory, except for the three tools (last three slots)
+---and any item in toolbelt (hand), into storage inventory
+---when internal inventory's fullness reachs a certain level
+function Action:dumpLootsIfNeeded()
+    self:dumpLootsThreshold_(robot.inventorySize() * 0.65)
+end
+
+---Dumps all items in internal inventory, except for the three tools (last three slots)
+---and any item in toolbelt (hand), into storage inventory
+function Action:dumpLoots()
+    self:dumpLootsThreshold_(0)
+end
+
+function Action:dumpLootsThreshold_(threshold)
+    local occupiedSlots = {}
+    for slot = 1, self.storageStopSlot do
+        if robot.count(slot) > 0 then
+            occupiedSlots[#occupiedSlots + 1] = slot
         end
     end
 
-    inventory_controller.equip()
-    robot.select(selectedSlot)
-    return placed
+    if #occupiedSlots > threshold then
+        self:doAfterSaveSelectedSlot(function()
+            gps.go(self.storagePos)
+            for _, slot in ipairs(occupiedSlots) do
+                robot.select(slot)
+                robot.dropDown()
+            end
+        end)
+    end
 end
 
-local function deweed()
-    local selectedSlot = robot.select()
-    if config.takeCareOfDrops and fullInventory() then
-        dumpInventory()
-    end
-    robot.select(robot.inventorySize() + config.spadeSlot)
-    inventory_controller.equip()
-    robot.useDown()
-    if config.takeCareOfDrops then
-        robot.suckDown()
-    end
-    inventory_controller.equip()
-    robot.select(selectedSlot)
+function Action:restockCropSticks()
+    self:doAfterSaveSelectedSlot(function()
+        gps.go(self.cropSticksContainerPos)
+        robot.select(self.cropStickSlot)
+        -- Can handle StorageDrawer
+        while robot.count() < 64 and robot.suckDown(64 - robot.count()) do
+
+        end
+    end)
 end
 
-local function transplant(src, dest)
-    local selectedSlot = robot.select()
-    gps.save()
-    robot.select(robot.inventorySize() + config.binderSlot)
-    inventory_controller.equip()
-
-    -- transfer the crop to the relay location
-    gps.go(config.dislocatorPos)
-    robot.useDown(sides.down)
-    gps.go(src)
-    robot.useDown(sides.down, true) -- sneak-right-click on crops to prevent harvesting
-    gps.go(config.dislocatorPos)
-    signal.pulseDown()
-
-    -- transfer the crop to the destination
-    robot.useDown(sides.down)
-    gps.go(dest)
-    if scanner.scan().name == "air" then
-        placeCropStick()
+function Action:restockCropSticksIfNotEnough()
+    if robot.count(self.cropStickSlot) < 2 then
+        self:restockCropSticks()
     end
-    robot.useDown(sides.down, true)
-    gps.go(config.dislocatorPos)
-    signal.pulseDown()
+end
 
-    -- destroy the original crop
-    gps.go(config.relayFarmlandPos)
-    deweed()
-    robot.swingDown()
-    if config.takeCareOfDrops then
-        robot.suckDown()
+---@param needChargeLevel number?
+function Action:chargeIfLowEnergy(needChargeLevel)
+    if self:needsCharge(needChargeLevel) then
+        gps.go(self.chargerPos)
+        repeat
+            os.sleep(0.5)
+        until self:isFullyCharged()
     end
+end
 
-    inventory_controller.equip()
-    gps.resume()
-    robot.select(selectedSlot)
+function Action:chargeLevel()
+    return computer.energy() / computer.maxEnergy()
+end
+
+function Action:needsCharge(needChargeLevel)
+    needChargeLevel = needChargeLevel or self.needChargeLevel
+    return self:chargeLevel() <= needChargeLevel
+end
+
+function Action:isFullyCharged()
+    return self:chargeLevel() > 0.99
 end
 
 --[[
-    Transfers a crop using transvector
+    Transplants a crop using transvector
 
-    It tries to put crop at dest, if it could not, it tries to put crop
-    at dest provided by iterator iterAltDest
+    There should be a crop at fromPos, and toPos should be air above
+    an empty farmland.
 
     The process:
     1. With binder in hand, click transvector
-    2. Click the thing you want to swap
+    2. Click the thing to be swapped
     3. Send a redstone signal to transvector
 ]]
-local function transplantToStorageFarm(src, dest, iterAltDest)
-    iterAltDest = iterAltDest or function() return nil end
-    local selectedSlot = robot.select()
-    gps.save()
-    robot.select(robot.inventorySize() + config.binderSlot)
-    inventory_controller.equip()
-
-    -- transfer the crop to the relay location
-    gps.go(config.dislocatorPos)
-    robot.useDown(sides.down)
-    gps.go(src)
-    robot.useDown(sides.down, true) -- sneak-right-click on crops to prevent harvesting
-    gps.go(config.dislocatorPos)
-    signal.pulseDown()
-
-    -- transfer the crop to the destination
-    robot.useDown(sides.down)
-    gps.go(dest)
-    local placeSuccess = true
-    -- Uses scanner to avoid harvesting crops
-    if scanner.scan().name ~= 'air' or not placeCropStick() then
-        local prevDest = dest
-        local altDest = iterAltDest()
-        print(string.format(
-            "Failed to place crop at %s, looking for another...",
-            posUtil.posToString(prevDest)
-        ))
-        while altDest do
-            gps.go(altDest)
-            if scanner.scan().name == 'air' and placeCropStick() then
-                print(string.format(
-                    "Found slot %d to place crop",
-                    posUtil.globalToStorage(altDest)
-                ))
-                break
-            end
-            prevDest = altDest
-            altDest = iterAltDest()
-        end
-        if not altDest then
-            -- Fails to place crop and we have no more storage slot
-            placeSuccess = false
-        end
-    end
-    if placeSuccess then
-        robot.useDown(sides.down, true)
-        gps.go(config.dislocatorPos)
+---@param fromPos Position
+---@param toPos Position
+function Action:transplantCrop(fromPos, toPos)
+    self:doAfterSafeEquip(self.binderSlot, function()
+        -- transfer the crop to the relay location
+        gps.go(self.dislocatorPos)
+        robot.useDown(sides.down)
+        gps.go(fromPos)
+        robot.useDown(sides.down, true) -- sneak-right-click on crops to prevent harvesting
+        gps.go(self.dislocatorPos)
         signal.pulseDown()
 
-        -- destroy the original crop
-        gps.go(config.relayFarmlandPos)
-        deweed()
-        robot.swingDown()
-        if config.takeCareOfDrops then
-            robot.suckDown()
-        end
-    end
-
-    inventory_controller.equip()
-    gps.resume()
-    robot.select(selectedSlot)
-    return placeSuccess
-end
-
-
-local function transplantToMultifarm(src, dest)
-    local globalDest = posUtil.multifarmPosToGlobalPos(dest)
-    local optimalDislocatorSet = posUtil.findOptimalDislocator(dest)
-    local dislocatorPos = optimalDislocatorSet[1]
-    local relayFarmlandPos = optimalDislocatorSet[2]
-
-    local selectedSlot = robot.select()
-    gps.save()
-
-    if robot.count(robot.inventorySize() + config.stickSlot) < 2 then
-        restockStick()
-    end
-
-    robot.select(robot.inventorySize() + config.binderSlot)
-    inventory_controller.equip()
-
-    -- transfer the crop to the relay location
-    gps.go(config.elevatorPos)
-    gps.down(3)
-    gps.go(dislocatorPos)
-    robot.useDown(sides.down)
-
-    gps.go(config.elevatorPos)
-    gps.up(3)
-    gps.go(src)
-    robot.useDown(sides.down, true) -- sneak-right-click on crops to prevent harvesting
-
-    gps.go(config.elevatorPos)
-    gps.down(3)
-    gps.go(dislocatorPos)
-    signal.pulseDown()
-
-    if not (relayFarmlandPos[1] == globalDest[1] and relayFarmlandPos[2] == globalDest[2]) then
         -- transfer the crop to the destination
         robot.useDown(sides.down)
-        gps.go(globalDest)
-        placeCropStick()
+        gps.go(toPos)
+        if self:scanBelow().name == "air" then
+            -- e.g. does not place a stick when transplanting to an existing
+            -- parent plant in breed farm
+            self:placeCropSticks()
+        end
         robot.useDown(sides.down, true)
-        gps.go(dislocatorPos)
+        gps.go(self.dislocatorPos)
         signal.pulseDown()
 
         -- destroy the original crop
-        gps.go(relayFarmlandPos)
-        robot.swingDown()
-    end
-
-    gps.go(config.elevatorPos)
-    gps.up(3)
-
-    inventory_controller.equip()
-    gps.resume()
-    robot.select(selectedSlot)
+        gps.go(self.relayFarmlandPos)
+        self:breakCrop()
+    end)
 end
 
-local function destroyAll()
-    for slot = 2, config.farmArea, 2 do
-        gps.go(posUtil.farmToGlobal(slot))
-        robot.swingDown()
-        if config.takeCareOfDrops then
-            robot.suckDown()
+---@param checkSpade boolean
+---@param checkBinder boolean
+---@param checkSticks boolean
+function Action:checkEquipment(checkSpade, checkBinder, checkSticks)
+    local msg = {}
+    local info
+    if checkSpade then
+        info = inventoryController.getStackInInternalSlot(self.spadeSlot)
+        if not info or info.name ~= utils.SPADE_MCNAME then
+            msg[#msg + 1] = "Missing spade at slot " .. self.spadeSlot
+        end
+    end
+
+    if checkBinder then
+        info = inventoryController.getStackInInternalSlot(self.binderSlot)
+        if not info or info.name ~= utils.BINDER_MCNAME then
+            msg[#msg + 1] = "Missing binder at slot " .. self.binderSlot
+        end
+    end
+
+    if checkSticks then
+        info = inventoryController.getStackInInternalSlot(self.cropStickSlot)
+        if not info or info.name ~= utils.CROPSTICK_MCNAME then
+            msg[#msg + 1] = "Missing crop stick at slot " .. self.cropStickSlot
+        end
+    end
+
+    if #msg > 0 then
+        io.stderr:write(table.concat(msg, "; "))
+        os.exit(false)
+    end
+end
+
+---Breaks all weeds and crop sticks in breed farm
+---@param farmSize integer
+function Action:cleanUpBreedFarm(farmSize)
+    for slot, pos in posUtil.allBreedPos(farmSize) do
+        gps.go(pos)
+        local scanned = self:scanBelow()
+        if scanned.name == "cropStick" or utils.isWeed(scanned) then
+            self:breakCrop()
         end
     end
 end
 
-return {
-    needCharge = needCharge,
-    charge = charge,
-    restockStick = restockStick,
-    restockAll = restockAll,
-    placeCropStick = placeCropStick,
-    deweed = deweed,
-    transplant = transplant,
-    transplantToMultifarm = transplantToMultifarm,
-    transplantToStorageFarm = transplantToStorageFarm,
-    destroyAll = destroyAll
-}
+---@generic T
+---@param funDo fun(): T
+---@return T
+function Action:doAfterSavePos(funDo)
+    gps.save()
+    local ret = funDo()
+    gps.resume()
+    return ret
+end
+
+---@generic T
+---@param funDo fun(): T
+---@return T
+function Action:doAfterSaveSelectedSlot(funDo)
+    local selected = robot.select()
+    local ret = funDo()
+    robot.select(selected)
+    return ret
+end
+
+---@generic T
+---@param slot integer
+---@param funDo fun(): T
+---@return T
+function Action:doAfterSafeEquip(slot, funDo)
+    local toEquip = inventoryController.getStackInInternalSlot(slot).name
+    if self.curEquip_ and self.curEquip_ == toEquip then
+        return funDo()
+    end
+
+    local ret
+    self:doAfterSaveSelectedSlot(function()
+        robot.select(slot)
+        inventoryController.equip()
+        local oldEquip = self.curEquip_
+        self.curEquip_ = toEquip
+        ret = funDo()
+        robot.select(slot)
+        inventoryController.equip()
+        self.curEquip_ = oldEquip
+    end)
+    return ret
+end
+
+return Action

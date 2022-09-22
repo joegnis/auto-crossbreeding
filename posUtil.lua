@@ -1,8 +1,18 @@
 local config = require("config")
 
+
 local M = {}
 
-local function posToSlot(size, pos)
+function M.posToString(globalPos)
+    return string.format("(%d, %d)", globalPos[1], globalPos[2])
+end
+
+---@alias Position integer[]
+---Converts a global position to breed farm's slot number
+---@param pos Position
+---@param size integer
+---@return integer
+function M.posToBreedSlot(pos, size)
     local lastColNum
     if pos[1] % 2 == 1 then
         lastColNum = pos[2] + 1
@@ -12,7 +22,19 @@ local function posToSlot(size, pos)
     return (pos[1] - 1) * size + lastColNum
 end
 
-local function slotToPos(size, slot)
+---Converts a global position to storage farm's slot number
+---@param pos Position
+---@param size integer
+---@return integer
+function M.posToStorageSlot(pos, size)
+    return M.posToBreedSlot({-pos[1], pos[2]}, size)
+end
+
+---Converts a breed farm's slot number to global position
+---@param slot integer
+---@param size integer breed farm's size
+---@return Position
+function M.breedSlotToPos(slot, size)
     local x = (slot - 1) // size + 1
     local y
     local lastColNum = (slot - 1) % size
@@ -24,30 +46,62 @@ local function slotToPos(size, slot)
     return { x, y }
 end
 
-function M.posToString(globalPos)
-    return string.format("{%d, %d}", globalPos[1], globalPos[2])
+---Converts a storage farm's slot number to global position
+---@param slot integer
+---@param size integer storage farm's size
+---@return Position
+function M.storageSlotToPos(slot, size)
+    local pos = M.breedSlotToPos(slot, size)
+    pos[1] = -pos[1]
+    return pos
 end
 
-function M.globalToFarm(globalPos, farmSize)
-    farmSize = farmSize or config.farmSize
-    return posToSlot(farmSize, globalPos)
+---Creates an iterator of all slots and their positions in a storage farm
+---@param size integer storage farm's size
+---@return fun(): integer, Position
+function M.allStoragePos(size)
+    local farmArea = size ^ 2
+    local slot = 0
+    return function ()
+        slot = slot + 1
+        if slot <= farmArea then
+            return slot, M.storageSlotToPos(slot, size)
+        end
+    end
 end
 
-function M.farmToGlobal(farmSlot, farmSize)
-    farmSize = farmSize or config.farmSize
-    return slotToPos(farmSize, farmSlot)
+---Creates an iterator of parent breeding crops' slots and positions in a breed farm
+---@param size integer breed farm's size
+---@return fun(): integer, Position
+function M.allBreedParentsPos(size)
+    local farmArea = size ^ 2
+    local slot = -1
+    return function ()
+        slot = slot + 2
+        if slot <= farmArea then
+            return slot, M.breedSlotToPos(slot, size)
+        end
+    end
 end
 
-function M.globalToStorage(globalPos, farmSize)
-    farmSize = farmSize or config.storageFarmSize
-    return posToSlot(farmSize, { -globalPos[1], globalPos[2] })
+function M.assertParentSlot(slot)
+    if slot % 2 == 1 then
+        error(string.format("%d is not a parent slot", slot))
+    end
 end
 
-function M.storageToGlobal(storageSlot, farmSize)
-    farmSize = farmSize or config.storageFarmSize
-    local globalPos = slotToPos(farmSize, storageSlot)
-    globalPos[1] = -globalPos[1];
-    return globalPos
+---Creates an iterator of all slots and their positions in a breed farm
+---@param size integer breed farm's size
+---@return fun(): integer, Position
+function M.allBreedPos(size)
+    local farmArea = size ^ 2
+    local slot = 0
+    return function ()
+        slot = slot + 1
+        if slot <= farmArea then
+            return slot, M.breedSlotToPos(slot, size)
+        end
+    end
 end
 
 function M.multifarmPosInFarm(pos)

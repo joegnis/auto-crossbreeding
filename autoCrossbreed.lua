@@ -1,182 +1,103 @@
-local gps = require("gps")
-local action = require("action")
-local database = require("database")
-local scanner = require("scanner")
-local posUtil = require("posUtil")
-local config = require("config")
-local robot = require("robot")
+local gps = require "gps"
+local Action = require "Action"
+local posUtil = require "posUtil"
+local config = require "autoCrossbreedConfig"
+local StorageFarm = require "farms.StorageFarm"
+local CrossbreedFarm = require "farms.CrossbreedFarm"
+local Crossbreeder = require "farmers.Crossbreeder"
 
-local BREED_FARM_SIZE = config.autoCrossBreed.breedFarmSize
-local STORAGE_FARM_SIZE = config.autoCrossBreed.storageFarmSize
-local BREED_FARM_AREA = BREED_FARM_SIZE ^ 2
-local STORAGE_FARM_AREA = STORAGE_FARM_SIZE ^ 2
 
-local lowestTier
-local lowestTierSlot
-local lowestStat
-local lowestStatSlot
-
-local function updateLowest(farmArea)
-    lowestTier = 64
-    lowestTierSlot = 0
-    lowestStat = 64
-    lowestStatSlot = 0
-    local farm = database.getFarm()
-
-    local hasEmptySlot = false;
-    -- pairs() is slower than numeric for due to function call overhead.
-    -- Find lowestest tier slot.
-    for slot = 1, farmArea, 2 do
-        local crop = farm[slot]
-        -- Can handle the case where a slot is a machine like crop-matron
-        -- Water block, etc is not supported yet
-        if crop.name == "air" then
-            lowestTierSlot = slot;
-            lowestStatSlot = slot;
-            hasEmptySlot = true;
-            break;
-        end
-
-        -- If a slot is weed, this may fail
-        if crop.isCrop and crop.tier < lowestTier then
-            lowestTier = crop.tier
-            lowestTierSlot = slot
-        end
-    end
-
-    if hasEmptySlot then
-        return;
-    end
-
-    -- Find lowest stats slot among the lowest tier crops.
-    for slot = 1, farmArea, 2 do
-        local crop = farm[slot]
-        if crop.isCrop and crop.tier == lowestTier then
-            local stat = crop.gr + crop.ga - crop.re
-            if stat < lowestStat then
-                lowestStat = stat
-                lowestStatSlot = slot
-            end
-        end
-    end
-end
-
-local function findSuitableFarmSlot(crop)
-    -- if the return value > 0, then it's a valid crop slot
-    -- if the return value == 0, then it's not a valid crop slot
-    --     the caller may consider not to replace any crop.
-    if crop.tier > lowestTier then
-        return lowestTierSlot
-    elseif crop.tier == lowestTier then
-        if crop.gr + crop.ga - crop.re > lowestStat then
-            return lowestStatSlot
-        end
-    end
-    return 0
-end
-
-local function isWeed(crop)
-    return crop.name == "weed" or
-        crop.name == "Grass" or
-        crop.gr > 23 or
-        (crop.name == "venomilia" and crop.gr > 7);
-end
-
-local function checkOffspring(slot, crop)
-    if crop.name == "air" then
-        action.placeCropStick(2)
-    elseif (not config.assumeNoBareStick) and crop.name == "crop" then
-        action.placeCropStick()
-    elseif crop.isCrop then
-        if isWeed(crop) then
-            action.deweed()
-            action.placeCropStick()
-        else
-            if database.existInStorage(crop) then
-                local suitableSlot = findSuitableFarmSlot(crop)
-                if suitableSlot == 0 then
-                    action.deweed()
-                    action.placeCropStick()
-                else
-                    action.transplant(
-                        posUtil.farmToGlobal(slot, BREED_FARM_SIZE),
-                        posUtil.farmToGlobal(suitableSlot, BREED_FARM_SIZE)
-                    )
-                    action.placeCropStick(2)
-                    database.updateFarm(suitableSlot, crop)
-                    updateLowest(BREED_FARM_AREA)
-                end
+local function reportStorageCrops(storageFarmSize)
+    local action = Action:new()
+    local breeds = {}
+    local numBreeds = 0
+    local positions = {}
+    for _, pos in posUtil.allStoragePos(storageFarmSize) do
+        gps.go(pos)
+        local posStr = posUtil.posToString(pos)
+        local scanned = action:scanBelow()
+        if scanned.isCrop then
+            local cropName = scanned.name
+            breeds[cropName] = true
+            if not positions[cropName] then
+                positions[cropName] = { posStr }
+                numBreeds = numBreeds + 1
             else
-                action.transplant(
-                    posUtil.farmToGlobal(slot, BREED_FARM_SIZE),
-                    posUtil.storageToGlobal(database.nextStorageSlot(), STORAGE_FARM_SIZE)
-                )
-                action.placeCropStick(2)
-                database.addToStorage(crop)
+                positions[cropName][#positions[cropName] + 1] = posStr
             end
         end
     end
-end
 
---[[
-    Parent crop can get destroied by weed. There is a need to deweed and replant.
- ]]
-local function checkParent(slot, crop)
-    if crop.isCrop and isWeed(crop) then
-        action.deweed();
-        database.updateFarm(slot, nil);
+    local dupeReports = {}
+    for name, pos in pairs(positions) do
+        if #pos > 1 then
+            dupeReports[#dupeReports+1] = name .. ": " .. table.concat(pos, ", ")
+        end
     end
+
+    if numBreeds == 0 then
+        print("Storage farm is empty.")
+        return
+    end
+
+    if #dupeReports > 0 then
+        print("Duplicate crops in storage farm: ")
+        print(table.concat(dupeReports, "\n"))
+    else
+        print("No duplicate crops in storage farm")
+    end
+
+    print()
+    print(string.format("All %d breeds in storage farm:", numBreeds))
+    for name, _ in pairs(breeds) do
+        print(string.format('"%s",', name))
+    end
+    gps.backOrigin()
 end
 
-local function breedOnce(breedFarmSize)
-    local breedFarmArea = breedFarmSize ^ 2
-    for slot = 1, breedFarmArea, 1 do
-        gps.go(posUtil.farmToGlobal(slot, breedFarmSize))
-        local crop = scanner.scan()
-
-        if (slot % 2 == 0) then
-            checkOffspring(slot, crop);
+local function main(args, breedFarmSize, storageFarmSize)
+    if args[1] then
+        local arg1 = args[1]
+        if arg1 == "-h" or arg1 == "--help" or arg1 == "help" then
+            print("autoCrossbreed [-h|--help|help]")
+            print("autoCrossbreed reportStorageCrops")
+            print()
+            print("reportStorageCrops: scans storage farm and prints duplicate crops and all breeds")
+            return
+        elseif arg1 == "reportStorageCrops" then
+            reportStorageCrops(storageFarmSize)
+            return
         else
-            checkParent(slot, crop);
-        end
-
-        -- breed farm may be too large to have enough crop sticks in one round
-        if robot.count(robot.inventorySize() + config.stickSlot) < 2 then
-            action.restockStick(true)
-        end
-
-        if action.needCharge() then
-            action.charge()
+            io.stderr:write("unknown argument: " .. arg1)
+            os.exit(false)
         end
     end
+
+    local action = Action:new()
+    action:checkEquipment(true, true, true)
+    print("Working in auto-crossbreeding mode...")
+    local farmer = Crossbreeder:new(action)
+    local storageCrops, reverseStorageCrops, storageEmptyLands =
+        action:scanFarm(
+            posUtil.allStoragePos(storageFarmSize),
+            config.checkStorageFarmland
+        )
+    local storageFarm = StorageFarm:new(
+        storageFarmSize, storageCrops, reverseStorageCrops, storageEmptyLands,
+        config.cropsBlacklist
+    )
+    -- ensures that robot does not wander around too far out, e.g. too far off ground
+    gps.backOrigin()
+    local breedFarm = CrossbreedFarm:new(
+        breedFarmSize,
+        action:scanFarm(posUtil.allBreedParentsPos(breedFarmSize), config.checkBreedFarmland)
+    )
+    farmer:breedLoop(breedFarm, storageFarm)
 end
 
-local function init(breedFarmSize, storageFarmSize)
-    database.scanFarm(breedFarmSize)
-    database.scanStorage(storageFarmSize)
-    updateLowest(breedFarmSize ^ 2)
-    action.restockAll()
+local function testReportStorage()
+    local size = 2
+    reportStorageCrops(size)
 end
 
-local function main()
-    init(BREED_FARM_SIZE, STORAGE_FARM_SIZE)
-    local breedRound = 0;
-    while true do
-        breedOnce(BREED_FARM_SIZE);
-        gps.go({ 0, 0 });
-        action.restockAll();
-
-        breedRound = breedRound + 1;
-        if (config.maxBreedRound and breedRound > config.maxBreedRound) then
-            print('Max round reached, end cross-breeding.');
-            break;
-        end
-
-        if #database.getStorage() >= STORAGE_FARM_AREA then
-            print('Storage full, end cross-breeding.');
-            break;
-        end
-    end
-end
-
-main()
+main({ ... }, config.breedFarmSize, config.storageFarmSize)

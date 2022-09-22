@@ -1,7 +1,7 @@
 local gps = require("gps")
 local posUtil = require("posUtil")
-local scanner = require("scanner")
 local config = require("config")
+local utils = require("utils")
 
 --[[
 If you are reading the source code and got confused by the whole "slot" thing,
@@ -26,31 +26,26 @@ but the number increases from left to right. Like this:
 |1|6|7|
 -------
 ]]
+local M = {}
 
-local storage = {}
-local reverseStorage = {} -- for a faster lookup of already existing crops
 local farm = {} -- odd slots only
 -- the center of this pos is the center of the multifarm.
 -- you can find functions in posUtil to translate it to global pos.
 local lastMultifarmPos = { 0, 0 }
 
-local function getStorage()
-    return storage
-end
-
-local function getFarm()
+function M.getFarm()
     return farm
 end
 
-local function getLastMultifarmPos()
+function M.getLastMultifarmPos()
     return lastMultifarmPos
 end
 
-local function setLastMultifarmPos(pos)
+function M.setLastMultifarmPos(pos)
     lastMultifarmPos = pos
 end
 
-local function scanFarm(farmSize)
+function M.scanFarm(farmSize)
     local farmArea = farmSize ^ 2
 
     gps.save()
@@ -76,37 +71,11 @@ local function scanFarm(farmSize)
     gps.resume()
 end
 
-local function scanStorage(farmSize)
-    local farmArea = farmSize ^ 2
-
-    gps.save()
-    local countCrop = 0
-    for slot = 1, farmArea do
-        gps.go(posUtil.storageToGlobal(slot, farmSize))
-        local cropInfo = scanner.scan()
-        if cropInfo.name ~= "air" then
-            storage[slot] = cropInfo
-            reverseStorage[cropInfo.name] = slot
-            countCrop = countCrop + 1
-        else
-            -- Stops scanning when finding the first air block. May improve.
-            break
-        end
-    end
-    print(string.format("Scanned stroage farm: %d crops", countCrop))
-    gps.resume()
-end
-
-local function addToStorage(crop)
-    storage[#storage + 1] = crop
-    reverseStorage[crop.name] = #storage
-end
-
-local function updateFarm(slot, crop)
+function M.updateFarm(slot, crop)
     farm[slot] = crop
 end
 
-local function nextMultifarmPos()
+function M.nextMultifarmPos()
     local x = lastMultifarmPos[1]
     local y = lastMultifarmPos[2]
 
@@ -137,29 +106,29 @@ local function nextMultifarmPos()
 
     if posUtil.multifarmPosIsRelayFarmland(nextPossiblePos) or not posUtil.multifarmPosInFarm(nextPossiblePos) then
         lastMultifarmPos = nextPossiblePos
-        return nextMultifarmPos()
+        return M.nextMultifarmPos()
     else
         return nextPossiblePos
     end
 end
 
-local function updateMultifarm(pos)
+function M.updateMultifarm(pos)
     lastMultifarmPos = pos
 end
 
-local function scanMultifarm()
+function M.scanMultifarm()
     gps.save()
     gps.go(config.elevatorPos)
     gps.down(3)
     while true do
-        local nextPos = nextMultifarmPos()
+        local nextPos = M.nextMultifarmPos()
         local nextGlobalPos = posUtil.multifarmPosToGlobalPos(nextPos)
         gps.go(nextGlobalPos)
         local cropInfo = scanner.scan()
         if cropInfo.name == "air" then
             break
         else
-            updateMultifarm(nextPos)
+            M.updateMultifarm(nextPos)
         end
     end
     gps.go(config.elevatorPos)
@@ -167,32 +136,4 @@ local function scanMultifarm()
     gps.resume()
 end
 
-local function existInStorage(crop)
-    -- I know I can simply write "return reverseStorage[crop.name]"
-    -- But I want the api have a clean return value (alway bool)
-    if reverseStorage[crop.name] then
-        return true
-    else
-        return false
-    end
-end
-
-local function nextStorageSlot()
-    return #storage + 1
-end
-
-return {
-    getStorage = getStorage,
-    getFarm = getFarm,
-    getLastMultifarmPos = getLastMultifarmPos,
-    setLastMultifarmPos = setLastMultifarmPos,
-    scanFarm = scanFarm,
-    scanStorage = scanStorage,
-    scanMultifarm = scanMultifarm,
-    existInStorage = existInStorage,
-    nextStorageSlot = nextStorageSlot,
-    addToStorage = addToStorage,
-    updateFarm = updateFarm,
-    nextMultifarmPos = nextMultifarmPos,
-    updateMultifarm = updateMultifarm
-}
+return M

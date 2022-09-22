@@ -1,15 +1,17 @@
 local robot = require("robot")
 
+local M = {}
 local nowFacing = 1
 local nowPos = { 0, 0 }
 local savedPos = {}
 
-local function getFacing()
-    return nowFacing
-end
-
-local function getPos()
-    return nowPos
+local function turningDelta(facing)
+    local delta = (facing - nowFacing) % 4
+    if delta <= 2 then
+        return delta
+    else
+        return 4 - delta
+    end
 end
 
 local function safeForward()
@@ -19,7 +21,15 @@ local function safeForward()
     until forwardSuccess
 end
 
-local function turnTo(facing)
+function M.getFacing()
+    return nowFacing
+end
+
+function M.getPos()
+    return nowPos
+end
+
+function M.turnTo(facing)
     local delta = (facing - nowFacing) % 4
     nowFacing = facing
     if delta <= 2 then
@@ -33,16 +43,7 @@ local function turnTo(facing)
     end
 end
 
-local function turningDelta(facing)
-    local delta = (facing - nowFacing) % 4
-    if delta <= 2 then
-        return delta
-    else
-        return 4 - delta
-    end
-end
-
-local function go(pos)
+function M.go(pos)
     if nowPos[1] == pos[1] and nowPos[2] == pos[2] then
         return
     end
@@ -69,7 +70,7 @@ local function go(pos)
     end
 
     for i = 1, #path do
-        turnTo(path[i][1])
+        M.turnTo(path[i][1])
         for _ = 1, path[i][2] do
             safeForward()
         end
@@ -78,7 +79,12 @@ local function go(pos)
     nowPos = pos
 end
 
-local function down(distance)
+function M.backOrigin()
+    M.go({0, 0})
+    M.turnTo(1)
+end
+
+function M.down(distance)
     if distance == nil then
         distance = 1
     end
@@ -87,7 +93,7 @@ local function down(distance)
     end
 end
 
-local function up(distance)
+function M.up(distance)
     if distance == nil then
         distance = 1
     end
@@ -96,25 +102,16 @@ local function up(distance)
     end
 end
 
-local function save()
+function M.save()
     savedPos[#savedPos + 1] = nowPos
 end
 
-local function resume()
+function M.resume()
     if #savedPos == 0 then
         return
     end
-    go(savedPos[#savedPos])
+    M.go(savedPos[#savedPos])
     savedPos[#savedPos] = nil
 end
 
-return {
-    getFacing = getFacing,
-    getPos = getPos,
-    turnTo = turnTo,
-    go = go,
-    save = save,
-    resume = resume,
-    down = down,
-    up = up
-}
+return M
