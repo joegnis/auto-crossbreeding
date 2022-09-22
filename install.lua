@@ -2,13 +2,9 @@ local shell = require("shell")
 local filesystem = require("filesystem")
 local args = { ... }
 local scripts = {
-    "Action.lua",
+    "action.lua",
     "autoCrossbreed.lua",
     "autoCrossbreedConfig.lua",
-    "autoSpread.lua",
-    "autoSpreadConfig.lua",
-    "autoStat.lua",
-    "autoStatConfig.lua",
     "config.lua",
     "database.lua",
     "gps.lua",

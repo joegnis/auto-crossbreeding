@@ -1,4 +1,4 @@
-local Action = require "Action"
+local Action = require "action"
 local gps = require "gps"
 
 local function main(args)
