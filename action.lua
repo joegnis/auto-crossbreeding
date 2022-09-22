@@ -110,7 +110,9 @@ end
 ---@return ScannedInfo
 function Action:scanBelow()
     local rawResult = geolyzer.analyze(sides.down)
-    if rawResult.name == "minecraft:air" or rawResult.name == "GalacticraftCore:tile.brightAir" then
+    if rawResult.name == "minecraft:air"
+        or rawResult.name == "GalacticraftCore:tile.brightAir"
+        or rawResult.name == "Thaumcraft:blockAiry" then
         return { isCrop = false, name = "air" }
     elseif rawResult.name == "IC2:blockCrop" then
         if rawResult["crop:name"] == nil then
