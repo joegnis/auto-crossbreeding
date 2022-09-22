@@ -7,7 +7,7 @@ local posUtil = require "posUtil"
 ---@field reverseStorage_ table<string, integer>
 ---@field size_ integer
 ---@field emptyFarmlands_ Deque
----@field cropsBlacklist_ Set<string>?
+---@field cropsBlacklist_ Set<string>
 ---@field countBreeds_ integer
 local StorageFarm = {}
 
@@ -28,10 +28,19 @@ function StorageFarm:new(
 
     o.size_ = size
     o.storage_ = cropsInfo
-    o.reverseStorage_ = reverseCropsInfo
     o.emptyFarmlands_ = emptyFarmlands
+
+    o.reverseStorage_ = {}
+    for name, slot in pairs(reverseCropsInfo) do
+        o.reverseStorage_[string.lower(name)] = slot
+    end
+
     cropsBlacklist = cropsBlacklist or {}
-    o.cropsBlacklist_ = utils.listToSet(cropsBlacklist)
+    o.cropsBlacklist_ = {}
+    for _, crop in ipairs(cropsBlacklist) do
+        o.cropsBlacklist_[string.lower(crop)] = true
+    end
+
     print(string.format(
         "Storage farm: %d slots in total; %d still available; black list: [%s]",
         size ^ 2, emptyFarmlands:size(), table.concat(cropsBlacklist, ", ")
@@ -71,18 +80,22 @@ function StorageFarm:addCrop(crop, transplantCropTo)
     local slot = self.emptyFarmlands_:popLast()
     transplantCropTo(posUtil.storageSlotToPos(slot, self.size_))
     self.storage_[slot] = crop
-    if self.reverseStorage_[crop.name] ~= nil then
+    -- case insensitive
+    local cropName = string.lower(crop.name)
+    if self.reverseStorage_[cropName] ~= nil then
         self.countBreeds_ = self.countBreeds_ + 1
     end
-    self.reverseStorage_[crop.name] = slot
+    self.reverseStorage_[cropName] = slot
     print(string.format("Added '%s' to storage farm.", crop.name))
 end
 
 ---Tests if a crop exists in the storage farm.
----Taking into accounts of the black list.
+---Taking into account of the black list.
+---Case insensitive when comparing crop's names
 ---@param cropName string
 ---@return boolean
 function StorageFarm:cropExists(cropName)
+    cropName = string.lower(cropName)
     return self.cropsBlacklist_[cropName] ~= nil or
         self.reverseStorage_[cropName] ~= nil
 end

@@ -1,7 +1,7 @@
 local Action = require "action"
 local gps = require "gps"
 local posUtil = require "posUtil"
-local StorageFarm = require "storageFarm"
+local StorageFarm = require "farms.StorageFarm"
 
 
 local function testScanStorageFarm()
@@ -32,23 +32,28 @@ end
 local function testCropExists()
     local size = 2
     local action = Action:new()
+    local storageCrops, reverseStorageCrops, storageEmptyLands =
+        action:scanFarm(posUtil.allStoragePos(size), true)
     local storageFarm = StorageFarm:new(
-        size, action:scanFarm(posUtil.allStoragePos(size), true)
+        size, storageCrops, reverseStorageCrops, storageEmptyLands,
+        {"stickreed"}
     )
     local function testExists(name)
         print(string.format("%s: %s", name, storageFarm:cropExists(name)))
     end
 
-    testExists("stickreed")
+    testExists("StickReed")
     testExists("terraWart")
     testExists("Brown Mushrooms")
     testExists("Red Stonelilly")
     testExists("Saphhirum")
     testExists("reed")
+
+    gps.backOrigin()
 end
 
 local function testAddCrop()
-    local posSrcCrop = { 2, 0 }
+    local posSrcCrop = { 1, 1 }
     local size = 3
     local action = Action:new()
     action:checkEquipment(true, true, true)
@@ -58,6 +63,7 @@ local function testAddCrop()
         gps.go(posSrcCrop)
         action:placeCropSticks(true)
     end)
+    print(string.format("Crop exists: %s", storageFarm:cropExists("stargatium")))
     gps.backOrigin()
 end
 
