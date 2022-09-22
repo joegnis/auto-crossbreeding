@@ -65,4 +65,11 @@ local function testDumpLoots()
     gps.backOrigin()
 end
 
-testDumpLoots()
+local function testPlaceCropSticks()
+    local action = Action:new()
+    gps.go({-2, -1})
+    action:placeCropSticks(true)
+    gps.backOrigin()
+end
+
+testPlaceCropSticks()

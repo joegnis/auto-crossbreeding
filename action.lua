@@ -138,11 +138,9 @@ function Action:placeCropSticks(placeDouble)
     placeDouble = placeDouble or false
     local count = placeDouble and 2 or 1
 
-    if robot.count(self.cropStickSlot) < count then
-        self:doAfterSavePos(function()
-            self:restockCropSticks()
-        end)
-    end
+    self:doAfterSavePos(function()
+        self:restockCropSticksIfNotEnough()
+    end)
 
     return self:doAfterSafeEquip(self.cropStickSlot, function()
         local placed = true
@@ -221,11 +219,16 @@ function Action:restockCropSticks()
         while robot.count() < 64 and robot.suckDown(64 - robot.count()) do
 
         end
+        if robot.count() < 64 then
+            io.stderr:write("Not enough crop sticks")
+            os.exit(false)
+        end
     end)
 end
 
 function Action:restockCropSticksIfNotEnough()
-    if robot.count(self.cropStickSlot) < 2 then
+    -- Weird thing might happen when only having 2 crop sticks
+    if robot.count(self.cropStickSlot) < 5 then
         self:restockCropSticks()
     end
 end
