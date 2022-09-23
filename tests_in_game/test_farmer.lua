@@ -36,4 +36,21 @@ local function testScanCrossbreedFarm()
     gps.go({ 0, 0 })
 end
 
-testBreed()
+local function testBreedLoop()
+    local breedSize = 4
+    local storageSize = 3
+    local action = Action:new()
+    action:checkEquipment(true, true, true)
+    local worker = Crossbreeder:new(action)
+    local storageCrops, reverseStorageCrops, storageEmptyLands =
+    action:scanFarm(posUtil.allStoragePos(storageSize), false)
+    local storageFarm = StorageFarm:new(
+        storageSize, storageCrops, reverseStorageCrops, storageEmptyLands,
+        { "Micadia", "Titania", "God of Thunder", "Essence Berry", "Copper Oreberry" }
+    )
+    local breedFarm = CrossbreedFarm:new(breedSize, action:scanFarm(posUtil.allBreedParentsPos(breedSize)))
+    worker:breedLoop(breedFarm, storageFarm)
+    gps.backOrigin()
+end
+
+testBreedLoop()

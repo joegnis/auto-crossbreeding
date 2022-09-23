@@ -18,7 +18,7 @@ local scripts = {
     "farms/CrossbreedFarm.lua",
     "farms/StorageFarm.lua",
     "tests_in_game/test_action.lua",
-    "tests_in_game/test_autocrossbreed.lua",
+    "tests_in_game/test_farmer.lua",
     "tests_in_game/test_gps.lua",
     "tests_in_game/test_posUtil.lua",
     "tests_in_game/test_StorageFarm.lua",
