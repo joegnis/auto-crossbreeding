@@ -86,7 +86,7 @@ end
 
 function M.assertParentSlot(slot)
     if slot % 2 == 1 then
-        error(string.format("%d is not a parent slot", slot))
+        error(string.format("%d is not a parent slot", slot), 2)
     end
 end
 

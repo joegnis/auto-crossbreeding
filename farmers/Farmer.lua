@@ -12,7 +12,7 @@ local globalConfig = require "config"
 local Farmer = {}
 
 function Farmer:new()
-    error("Farmer should not be instantiated")
+    error("Farmer should not be instantiated", 2)
 end
 
 ---For child class constructor to call

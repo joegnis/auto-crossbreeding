@@ -75,7 +75,7 @@ end
 ---@param transplantCropTo fun(dest: Position)
 function StorageFarm:addCrop(crop, transplantCropTo)
     if self:isFull() then
-        error("Storage farm is full.")
+        error("Storage farm is full.", 2)
     end
     local slot = self.emptyFarmlands_:popLast()
     transplantCropTo(posUtil.storageSlotToPos(slot, self.size_))

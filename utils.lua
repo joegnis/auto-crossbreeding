@@ -157,7 +157,7 @@ end
 
 function Deque:popFirst()
     local first = self.first_
-    if first > self.last_ then error("deque is empty") end
+    if first > self.last_ then error("deque is empty", 2) end
     local key = self.list_[first]
     self.list_[first] = nil -- to allow garbage collection
     self.first_ = first + 1
@@ -167,7 +167,7 @@ end
 
 function Deque:popLast()
     local last = self.last_
-    if self.first_ > last then error("deque is empty") end
+    if self.first_ > last then error("deque is empty", 2) end
     local key = self.list_[last]
     self.list_[last] = nil -- to allow garbage collection
     self.last_ = last - 1
@@ -176,12 +176,12 @@ function Deque:popLast()
 end
 
 function Deque:peekFirst()
-    if self.first_ > self.last_ then error("deque is empty") end
+    if self.first_ > self.last_ then error("deque is empty", 2) end
     return self.list_[self.first_]
 end
 
 function Deque:peekLast()
-    if self.first_ > self.last_ then error("deque is empty") end
+    if self.first_ > self.last_ then error("deque is empty", 2) end
     return self.list_[self.last_]
 end
 

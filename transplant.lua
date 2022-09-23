@@ -16,7 +16,7 @@ local function main(args)
     local x2 = tonumber(args[3])
     local y2 = tonumber(args[4])
     if not x1 or not y1 or not x2 or not y2 then
-        error("Invalid arguments")
+        error("Invalid arguments", 2)
     end
     local action = Action:new()
     action:checkEquipment(true, true, true)

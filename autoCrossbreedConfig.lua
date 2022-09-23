@@ -18,12 +18,12 @@ local config = {
     ---When set, seeds inside this inventory will be included in report.
     ---Comment out this option or set it to nil if you don't need it.
     ---This is EXTRA, meaning inventory at storagePos will always be scanned for seeds.
-    extraSeedsStoragePos = {0, 7},
-    ---A list of crops to ignore saving when crossbreeding
-    ---they will not be transported to the storage farm
-    ---use ./autoCrossbreed printStorageNames to scan and print an
-    ---existing storage farm
-    ---Only tested with English names
+    extraSeedsStoragePos = { 0, 7 },
+    ---A list of crops to ignore saving when crossbreeding.
+    ---They will not be transported to the storage farm.
+    ---Use ./autoCrossbreed reportStorageCrops to get a list of existing crops (and seeds)
+    ---in storage farm.
+    ---Only tested with English names.
     cropsBlacklist = {
         "reed",
         "stickreed",

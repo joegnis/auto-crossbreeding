@@ -32,7 +32,7 @@ local function reportStorageCrops(
     end
     scansSeeds = scansSeeds or false
     if scansSeeds and not inventoryPos then
-        error("inventoryPos must be provided when scansSeeds is true")
+        error("inventoryPos must be provided when scansSeeds is true", 2)
     end
 
     -- Scans storage farm
@@ -149,7 +149,7 @@ local function main(args, breedFarmSize, storageFarmSize)
             gps.backOrigin()
             return
         else
-            io.stderr:write("unknown argument: " .. arg1)
+            io.stderr:write("unknown argument: " .. arg1 .. "\n")
             os.exit(false)
         end
     end
@@ -173,6 +173,7 @@ local function main(args, breedFarmSize, storageFarmSize)
         action:scanFarm(posUtil.allBreedParentsPos(breedFarmSize), config.checkBreedFarmland)
     )
     farmer:breedLoop(breedFarm, storageFarm)
+    gps.backOrigin()
 end
 
 local function testReportStorageCropsWithSeeds()

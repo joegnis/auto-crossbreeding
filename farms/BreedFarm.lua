@@ -14,7 +14,7 @@ local posUtil = require "posUtil"
 local BreedFarm = {}
 
 function BreedFarm:new()
-    error("should not instantiate BreedFarm")
+    error("should not instantiate BreedFarm", 2)
 end
 
 function BreedFarm:newChildClass()
