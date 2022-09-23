@@ -19,7 +19,7 @@ local function main(args)
         error("Invalid arguments", 2)
     end
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    action:equippedOrExit(true, true, true)
     action:transplantCrop({ x1, y1 }, { x2, y2 })
     gps.backOrigin()
 end

@@ -22,7 +22,7 @@ end
 
 local function testTransplantCrop()
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    action:equippedOrExit(true, true, true)
     action:transplantCrop({ -1, 1 }, { 2, 0 })
     action:transplantCrop({ -3, 1 }, { 2, 2 })
     gps.backOrigin()
@@ -33,7 +33,7 @@ local function testSafeEquip()
     local invControl = component.inventory_controller
 
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    action:equippedOrExit(true, true, true)
     action:doAfterSafeEquip(action.spadeSlot, function()
         os.sleep(0.5)
         action:doAfterSafeEquip(action.binderSlot, function()
@@ -50,13 +50,13 @@ end
 
 local function testCheckEquipment()
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    print(action:checkEquipment(true, true, true))
 end
 
 local function testCleanUpBreedFarm()
     local farmSize = 5
     local action = Action:new()
-    action:checkEquipment(true, false, false)
+    action:equippedOrExit(true, false, false)
     action:cleanUpFarm(posUtil.allBreedPos(farmSize))
     gps.backOrigin()
 end

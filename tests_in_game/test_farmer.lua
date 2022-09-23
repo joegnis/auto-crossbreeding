@@ -15,7 +15,7 @@ local function testBreed()
     local breedSize = 3
     local storageSize = 3
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    action:equippedOrExit(true, true, true)
     local worker = Crossbreeder:new(action)
     local storageCrops, reverseStorageCrops, storageEmptyLands =
     action:scanFarm(posUtil.allStoragePos(storageSize), false)
@@ -40,7 +40,7 @@ local function testBreedLoop()
     local breedSize = 4
     local storageSize = 3
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    action:equippedOrExit(true, true, true)
     local worker = Crossbreeder:new(action)
     local storageCrops, reverseStorageCrops, storageEmptyLands =
     action:scanFarm(posUtil.allStoragePos(storageSize), false)

@@ -7,7 +7,7 @@ local StorageFarm = require "farms.StorageFarm"
 local function testScanStorageFarm()
     local size = 5
     local action = Action:new()
-    action:checkEquipment(true, false, true)
+    action:equippedOrExit(true, false, true)
     StorageFarm:new(size, action:scanFarm(posUtil.allStoragePos(size), true))
     gps.go({ 0, 0 })
 end
@@ -56,7 +56,7 @@ local function testAddCrop()
     local posSrcCrop = { 1, 1 }
     local size = 3
     local action = Action:new()
-    action:checkEquipment(true, true, true)
+    action:equippedOrExit(true, true, true)
     local storageFarm = StorageFarm:new(size, action:scanFarm(posUtil.allStoragePos(size)))
     storageFarm:addCrop({ name = "Stargatium" }, function(dest)
         action:transplantCrop(posSrcCrop, dest)
