@@ -134,14 +134,27 @@ local function reportStorageCrops(
     print("}")
 end
 
+---@param action Action
+---@param breedFarmSize integer
+---@param storageFarmSize integer
+local function cleanUp(action, breedFarmSize, storageFarmSize)
+    action:cleanUpFarm(posUtil.allBreedPos(breedFarmSize))
+    action:cleanUpFarm(posUtil.allStoragePos(storageFarmSize))
+    action:dumpLoots()
+    gps.backOrigin()
+end
+
+---@param args string[]
+---@param breedFarmSize integer
+---@param storageFarmSize integer
 local function main(args, breedFarmSize, storageFarmSize)
+    local action = Action:new()
     if args[1] then
         local arg1 = args[1]
         if arg1 == "-h" or arg1 == "--help" or arg1 == "help" then
             print(table.concat(DESCRIPTIONS, "\n"))
             return
         elseif arg1 == "reportStorageCrops" then
-            local action = Action:new()
             reportStorageCrops(
                 action, storageFarmSize, true,
                 config.scansSeeds, action.storagePos, config.extraSeedsStoragePos
@@ -154,9 +167,11 @@ local function main(args, breedFarmSize, storageFarmSize)
         end
     end
 
-    local action = Action:new()
-    action:checkEquipment(true, true, true)
-    print("Working in auto-crossbreeding mode...")
+    action:equippedOrExit(true, true, true)
+    print(string.format(
+        "Started auto-crossbreeding. Breed farm size: %d, storage farm size: %d.",
+        breedFarmSize, storageFarmSize
+    ))
     local farmer = Crossbreeder:new(action)
     local storageCrops, reverseStorageCrops, storageEmptyLands = action:scanFarm(
         posUtil.allStoragePos(storageFarmSize),
@@ -172,8 +187,19 @@ local function main(args, breedFarmSize, storageFarmSize)
         breedFarmSize,
         action:scanFarm(posUtil.allBreedParentsPos(breedFarmSize), config.checkBreedFarmland)
     )
-    farmer:breedLoop(breedFarm, storageFarm)
-    gps.backOrigin()
+    utils.safeDoPrintError(
+        function()
+            farmer:breedLoop(breedFarm, storageFarm)
+        end,
+        function()
+            print("Breeding completed. Cleaning up farms...")
+            cleanUp(action, breedFarmSize, storageFarmSize)
+        end,
+        function()
+            print("Something went wrong during breeding. Cleaning up farms...")
+            cleanUp(action, breedFarmSize, storageFarmSize)
+        end
+    )
 end
 
 local function testReportStorageCropsWithSeeds()

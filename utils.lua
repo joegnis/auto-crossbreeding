@@ -116,6 +116,36 @@ function M.isMsgError(obj)
     return type(obj) == "table" and obj.type == "msg" and type(obj.msg) == "string"
 end
 
+---Calls a function, catches error thrown, and prints the error.
+---Returns whatever 'funDo' returns when success, nil otherwise.
+---@param funDo fun(arg1?: any, ...): ...
+---@param success fun() function to call when 'funDo' finishes without errors
+---@param fail fun() function to call after error is handled and printed
+---@param arg1? any
+---@return any result
+---@return any ...
+function M.safeDoPrintError(funDo, success, fail, arg1, ...)
+    local ret = {xpcall(
+        funDo,
+        function (err)
+            if M.isMsgError(err) then
+                io.stderr:write(err.msg .. "\n")
+            else
+                io.stderr:write(err .. "\n")
+                io.stderr:write(debug.traceback() .. "\n")
+            end
+        end,
+        arg1,
+        ...
+    )}
+    if ret[1] then
+        success()
+    else
+        fail()
+    end
+    return table.unpack(ret, 2)
+end
+
 ---@class Deque
 ---@field list_ table
 ---@field first_ integer

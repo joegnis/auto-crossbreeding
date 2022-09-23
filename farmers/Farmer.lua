@@ -69,44 +69,23 @@ end
 function Farmer:breedLoop(breedFarm, storageFarm, maxBreedRound)
     maxBreedRound = maxBreedRound or globalConfig.maxBreedRound
     local breedRound = 1
-    local ok = xpcall(
-        function()
-            while true do
-                print(string.format("Breeding round %d. Max %d.", breedRound, maxBreedRound))
-                self.action_:dumpLootsIfNeeded()
-                self.action_:restockCropSticksIfNotEnough()
-                self.action_:chargeIfLowEnergy()
-                gps.go({ 0, 0 })
-                local done = self:breed(breedFarm, storageFarm)
-                if done then
-                    break
-                end
-
-                breedRound = breedRound + 1
-                if breedRound > maxBreedRound then
-                    print("Max breeding round reached.")
-                    break
-                end
-            end
-        end,
-        function (err)
-            if utils.isMsgError(err) then
-                io.stderr:write(err.msg .. "\n")
-            else
-                io.stderr:write(err .. "\n")
-                io.stderr:write(debug.traceback() .. "\n")
-            end
+    while true do
+        print(string.format("Breeding round %d. Max %d.", breedRound, maxBreedRound))
+        self.action_:dumpLootsIfNeeded()
+        self.action_:restockCropSticksIfNotEnough()
+        self.action_:chargeIfLowEnergy()
+        gps.go({ 0, 0 })
+        local done = self:breed(breedFarm, storageFarm)
+        if done then
+            break
         end
-    )
-    -- Cleans up
-    if ok then
-        print("Breeding completed. Cleaning up farms...")
-    else
-        print("Something went wrong during breeding. Cleaning up farms...")
+
+        breedRound = breedRound + 1
+        if breedRound > maxBreedRound then
+            print("Max breeding round reached.")
+            break
+        end
     end
-    self.action_:cleanUpFarm(posUtil.allBreedPos(breedFarm:size()))
-    self.action_:cleanUpFarm(posUtil.allStoragePos(storageFarm:size()))
-    self.action_:dumpLoots()
 end
 
 ---@param slot integer

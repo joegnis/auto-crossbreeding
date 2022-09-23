@@ -6,7 +6,6 @@ local sides = require("sides")
 
 local gps = require("gps")
 local signal = require("signal")
-local posUtil = require("posUtil")
 local utils = require("utils")
 local Deque = utils.Deque
 local globalConfig = require("config")
@@ -299,6 +298,8 @@ end
 ---@param checkSpade boolean
 ---@param checkBinder boolean
 ---@param checkSticks boolean
+---@return boolean
+---@return string? msg
 function Action:checkEquipment(checkSpade, checkBinder, checkSticks)
     local msg = {}
     local info
@@ -324,7 +325,19 @@ function Action:checkEquipment(checkSpade, checkBinder, checkSticks)
     end
 
     if #msg > 0 then
-        error(utils.newMsgError(table.concat(msg, "; ")))
+        return false, table.concat(msg, "; ")
+    end
+    return true
+end
+
+---@param checkSpade boolean
+---@param checkBinder boolean
+---@param checkSticks boolean
+function Action:equippedOrExit(checkSpade, checkBinder, checkSticks)
+    local res, msg = self:checkEquipment(checkSpade, checkBinder, checkSticks)
+    if not res then
+        io.stderr:write(msg)
+        os.exit(false)
     end
 end
 
