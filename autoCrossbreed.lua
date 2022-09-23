@@ -7,17 +7,32 @@ local CrossbreedFarm = require "farms.CrossbreedFarm"
 local Crossbreeder = require "farmers.Crossbreeder"
 local utils = require "utils"
 
+local DESCRIPTIONS = {
+    "autoCrossbreed [-h|--help|help]",
+    "autoCrossbreed reportStorageCrops",
+    "",
+    '"reportStorageCrops" reports duplicate crops and all distinct crops by scanning crops in storage farm.',
+    'The "All crops" portion of the report can be used to fill out \'cropsBlacklist\' in config.',
+    "Also, when 'scansSeed' is set in config, it scans seeds in the inventory at 'storagePos'.",
+    "An extra storage will also be scanned for seeds if 'extraSeedsStoragePos' is set.",
+}
+
 
 ---@param action Action
 ---@param storageFarmSize integer
 ---@param sort boolean?
+---@param scansSeeds boolean?
 ---@param inventoryPos Position?
 ---@param seedInventoryPos Position?
 local function reportStorageCrops(
-    action, storageFarmSize, sort, inventoryPos, seedInventoryPos
+    action, storageFarmSize, sort, scansSeeds, inventoryPos, seedInventoryPos
 )
     if sort == nil then
         sort = true
+    end
+    scansSeeds = scansSeeds or false
+    if scansSeeds and not inventoryPos then
+        error("inventoryPos must be provided when scansSeeds is true")
     end
 
     -- Scans storage farm
@@ -53,7 +68,7 @@ local function reportStorageCrops(
     local countInv = 0
     local countCommon = 0
     -- Scans seeds in inventories
-    if inventoryPos then
+    if scansSeeds then
         local breedsInv = action:getBreedsFromSeedsInInventory(inventoryPos)
         if seedInventoryPos then
             breedsInv = utils.mergeSets(
@@ -92,16 +107,18 @@ local function reportStorageCrops(
         print("Storage farm is empty.")
     end
 
-    print()
-    if countInv > 0 then
-        print(string.format("Found %d distinct seeds in inventory.", countInv))
-        if #dupeInvReports > 0 then
-            print()
-            print(countCommon .. " crops in both storage farm and inventory:")
-            print(table.concat(dupeInvReports, "\n"))
+    if scansSeeds then
+        print()
+        if countInv > 0 then
+            print(string.format("Found %d distinct seeds in inventory.", countInv))
+            if #dupeInvReports > 0 then
+                print()
+                print(countCommon .. " crops in both storage farm and inventory:")
+                print(table.concat(dupeInvReports, "\n"))
+            end
+        else
+            print(string.format("No seeds were found in inventory."))
         end
-    else
-        print(string.format("No seeds were found in inventory."))
     end
 
     local breedsList = utils.setToList(breeds)
@@ -121,16 +138,14 @@ local function main(args, breedFarmSize, storageFarmSize)
     if args[1] then
         local arg1 = args[1]
         if arg1 == "-h" or arg1 == "--help" or arg1 == "help" then
-            print([[autoCrossbreed [-h|--help|help]
-autoCrossbreed reportStorageCrops
-
-"reportStorageCrops" reports duplicate crops and all distinct crops by
-scanning crops in storage farm and seeds in storage inventory.
-The inventory position to be scanned is set by storagePos in config.]])
+            print(table.concat(DESCRIPTIONS, "\n"))
             return
         elseif arg1 == "reportStorageCrops" then
             local action = Action:new()
-            reportStorageCrops(action, storageFarmSize, true, action.storagePos, { 0, 7 })
+            reportStorageCrops(
+                action, storageFarmSize, true,
+                config.scansSeeds, action.storagePos, config.extraSeedsStoragePos
+            )
             gps.backOrigin()
             return
         else
@@ -160,9 +175,21 @@ The inventory position to be scanned is set by storagePos in config.]])
     farmer:breedLoop(breedFarm, storageFarm)
 end
 
+local function testReportStorageCropsWithSeeds()
+    local action = Action:new()
+    reportStorageCrops(action, 2, true, true, action.storagePos, { 0, 7 })
+    gps.backOrigin()
+end
+
+local function testReportStorageCropsWithSeedsWrongArg()
+    local action = Action:new()
+    reportStorageCrops(action, 2, true, true)
+    gps.backOrigin()
+end
+
 local function testReportStorageCrops()
     local action = Action:new()
-    reportStorageCrops(action, 6, true, action.storagePos, { 0, 7 })
+    reportStorageCrops(action, 2, true, false)
     gps.backOrigin()
 end
 

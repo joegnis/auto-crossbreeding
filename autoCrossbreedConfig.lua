@@ -9,7 +9,17 @@ local config = {
     ---sticks. Non-farmland, e.g. water block, will be skipped when saving crops.
     checkStorageFarmland = true,
     checkBreedFarmland = true,
-    ---a list of crops to ignore saving when crossbreeding
+    ---Flag used when passing arg reportStorageCrops
+    ---When set, robot will scan seeds in inventory at storagePos and extraSeedStoragePos
+    ---if it is set.
+    scansSeeds = true,
+    ---Position of the extra inventory for seeds, e.g. filing cabinet.
+    ---Used when passing arg reportStorageCrops.
+    ---When set, seeds inside this inventory will be included in report.
+    ---Comment out this option or set it to nil if you don't need it.
+    ---This is EXTRA, meaning inventory at storagePos will always be scanned for seeds.
+    extraSeedsStoragePos = {0, 7},
+    ---A list of crops to ignore saving when crossbreeding
     ---they will not be transported to the storage farm
     ---use ./autoCrossbreed printStorageNames to scan and print an
     ---existing storage farm
