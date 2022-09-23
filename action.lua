@@ -220,8 +220,7 @@ function Action:restockCropSticks()
 
         end
         if robot.count() < 64 then
-            io.stderr:write("Not enough crop sticks")
-            os.exit(false)
+            error(utils.newMsgError("Not enough crop sticks in its inventory"))
         end
     end)
 end
@@ -325,8 +324,7 @@ function Action:checkEquipment(checkSpade, checkBinder, checkSticks)
     end
 
     if #msg > 0 then
-        io.stderr:write(table.concat(msg, "; "))
-        os.exit(false)
+        error(utils.newMsgError(table.concat(msg, "; ")))
     end
 end
 
@@ -348,10 +346,10 @@ function Action:getBreedsFromSeedsInInventory(storagePos)
     return breeds
 end
 
----Breaks all weeds and crop sticks in breed farm
----@param farmSize integer
-function Action:cleanUpBreedFarm(farmSize)
-    for slot, pos in posUtil.allBreedPos(farmSize) do
+---Breaks all weeds and crop sticks in a farm
+---@param iterFarm fun(): integer, Position
+function Action:cleanUpFarm(iterFarm)
+    for slot, pos in iterFarm do
         gps.go(pos)
         local scanned = self:scanBelow()
         if scanned.name == "cropStick" or utils.isWeed(scanned) then

@@ -1,5 +1,7 @@
 local Action = require "action"
 local gps = require "gps"
+local posUtil = require "posUtil"
+local utils = require "utils"
 
 
 local function testRestockCropSticks()
@@ -55,7 +57,7 @@ local function testCleanUpBreedFarm()
     local farmSize = 5
     local action = Action:new()
     action:checkEquipment(true, false, false)
-    action:cleanUpBreedFarm(farmSize)
+    action:cleanUpFarm(posUtil.allBreedPos(farmSize))
     gps.backOrigin()
 end
 
@@ -67,9 +69,29 @@ end
 
 local function testPlaceCropSticks()
     local action = Action:new()
-    gps.go({-2, -1})
+    gps.go({ -2, -1 })
     action:placeCropSticks(true)
     gps.backOrigin()
 end
 
-testPlaceCropSticks()
+local function testMsgError()
+    local ok = xpcall(
+        function()
+            --error(utils.newMsgError("foobar"))
+            error("foobar")
+        end,
+        function(err)
+            if utils.isMsgError(err) then
+                print("caught a MsgError")
+            else
+                print("it is a normal error")
+                io.stderr:write(err .. "\n")
+                io.stderr:write(debug.traceback() .. "\n")
+            end
+            return err
+        end
+    )
+    print("ok: " .. tostring(ok))
+end
+
+testMsgError()

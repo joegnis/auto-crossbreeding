@@ -69,26 +69,43 @@ end
 function Farmer:breedLoop(breedFarm, storageFarm, maxBreedRound)
     maxBreedRound = maxBreedRound or globalConfig.maxBreedRound
     local breedRound = 1
-    while true do
-        print(string.format("Breeding round %d. Max %d.", breedRound, maxBreedRound))
-        self.action_:dumpLootsIfNeeded()
-        self.action_:restockCropSticksIfNotEnough()
-        self.action_:chargeIfLowEnergy()
-        gps.go({0, 0})
-        local done = self:breed(breedFarm, storageFarm)
-        if done then
-            break
-        end
+    local ok = xpcall(
+        function()
+            while true do
+                print(string.format("Breeding round %d. Max %d.", breedRound, maxBreedRound))
+                self.action_:dumpLootsIfNeeded()
+                self.action_:restockCropSticksIfNotEnough()
+                self.action_:chargeIfLowEnergy()
+                gps.go({ 0, 0 })
+                local done = self:breed(breedFarm, storageFarm)
+                if done then
+                    break
+                end
 
-        breedRound = breedRound + 1
-        if breedRound > maxBreedRound then
-            print("Max breeding round reached.")
-            break
+                breedRound = breedRound + 1
+                if breedRound > maxBreedRound then
+                    print("Max breeding round reached.")
+                    break
+                end
+            end
+        end,
+        function (err)
+            if utils.isMsgError(err) then
+                io.stderr:write(err.msg .. "\n")
+            else
+                io.stderr:write(err .. "\n")
+                io.stderr:write(debug.traceback() .. "\n")
+            end
         end
-    end
-    print("Breeding completed. Cleaning up breed farm...")
+    )
     -- Cleans up
-    self.action_:cleanUpBreedFarm(breedFarm:size())
+    if ok then
+        print("Breeding completed. Cleaning up farms...")
+    else
+        print("Something went wrong during breeding. Cleaning up farms...")
+    end
+    self.action_:cleanUpFarm(posUtil.allBreedPos(breedFarm:size()))
+    self.action_:cleanUpFarm(posUtil.allStoragePos(storageFarm:size()))
     self.action_:dumpLoots()
 end
 

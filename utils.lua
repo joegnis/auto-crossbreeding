@@ -97,6 +97,25 @@ function M.sizeOfSet(set)
     return count
 end
 
+---@alias Error
+---| { type: '"msg"', msg: string }
+---@param msg string
+---@return Error
+function M.newMsgError(msg)
+    local mt = {}
+    function mt.__tostring(err)
+        return err.msg
+    end
+    local err = { type = "msg", msg = msg }
+    setmetatable(err, mt)
+    return err
+end
+
+---@return boolean
+function M.isMsgError(obj)
+    return type(obj) == "table" and obj.type == "msg" and type(obj.msg) == "string"
+end
+
 ---@class Deque
 ---@field list_ table
 ---@field first_ integer
