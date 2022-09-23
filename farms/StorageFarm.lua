@@ -16,7 +16,7 @@ local StorageFarm = {}
 ---@param cropsInfo table<integer, ScannedInfo>
 ---@param reverseCropsInfo table<string, integer>
 ---@param emptyFarmlands Deque
----@param cropsBlacklist string[]?
+---@param cropsBlacklist string[]? actually a Set, with case-insensitive crop names
 ---@return StorageFarm
 function StorageFarm:new(
     size, cropsInfo, reverseCropsInfo, emptyFarmlands,
