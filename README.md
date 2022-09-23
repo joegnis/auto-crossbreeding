@@ -45,17 +45,17 @@ Explanation in config.lua
 ## To Install
 
     wget https://raw.githubusercontent.com/joegnis/auto-crossbreeding/main/install.lua
-    ./install
+    ./install.lua
 
-If you run ./install after the installation, it will update all the files except for config.lua
+If you run install after the installation, it will update all the files except for config files.
 
-If you want to update config.lua also, you can run:
+If you want to update all config files, run:
 
-    ./install main updateconfig
+    ./install.lua main --update-config
 
-If you want to install dev branch, you can run:
+If you want to update one of the config files (actually any source files), run like:
 
-    ./install improve_autocrossbreed
+    ./install.lua main -u config.lua
 
 ## To Run
 
@@ -63,14 +63,9 @@ For crossbreeding automatically:
 
     autoCrossbreed
 
-For min-maxing automatically:
+## Development
 
-    autoStat docleanup
+To install dev branch:
 
-For filling up an entire forestry multifarm:
-
-    autoSpread docleanup
-
-If you want to do mix-maxing before filling up the multifarm:
-
-    autoStat && autoSpread
+    wget https://raw.githubusercontent.com/joegnis/auto-crossbreeding/dev/install.lua
+    ./install.lua
