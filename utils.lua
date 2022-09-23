@@ -3,6 +3,7 @@ local M = {}
 M.SPADE_MCNAME = "berriespp:itemSpade"
 M.BINDER_MCNAME = "ThaumicTinkerer:connector"
 M.CROPSTICK_MCNAME = "IC2:blockCrop"
+M.SEED_BAG_MCNAME = "IC2:itemCropSeed"
 
 ---Converts a table to string
 ---@param obj table
@@ -46,6 +47,54 @@ function M.listToSet(list)
         set[value] = true
     end
     return set
+end
+
+---@generic T
+---@param set Set<`T`>
+---@return string
+function M.setToString(set)
+    local stringList = {}
+    for key in pairs(set) do
+        stringList[#stringList + 1] = M.tableToString(key)
+    end
+    return "Set{ " .. table.concat(stringList, ", ") .. " }"
+end
+
+---@generic T
+---@param set1 Set<`T`>
+---@param set2 Set<T>
+---@return Set<T>
+function M.mergeSets(set1, set2)
+    local merged = {}
+    for key in pairs(set1) do
+        merged[key] = true
+    end
+    for key in pairs(set2) do
+        merged[key] = true
+    end
+    return merged
+end
+
+---@generic T
+---@param set Set<`T`>
+---@return T[]
+function M.setToList(set)
+    local list = {}
+    for key in pairs(set) do
+        list[#list + 1] = key
+    end
+    return list
+end
+
+---@generic T
+---@param set Set<`T`>
+---@return integer
+function M.sizeOfSet(set)
+    local count = 0
+    for _ in pairs(set) do
+        count = count + 1
+    end
+    return count
 end
 
 ---@class Deque

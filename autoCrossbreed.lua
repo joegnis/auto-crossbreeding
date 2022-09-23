@@ -5,67 +5,133 @@ local config = require "autoCrossbreedConfig"
 local StorageFarm = require "farms.StorageFarm"
 local CrossbreedFarm = require "farms.CrossbreedFarm"
 local Crossbreeder = require "farmers.Crossbreeder"
+local utils = require "utils"
 
 
-local function reportStorageCrops(storageFarmSize)
-    local action = Action:new()
-    local breeds = {}
-    local numBreeds = 0
-    local positions = {}
+---@param action Action
+---@param storageFarmSize integer
+---@param sort boolean?
+---@param inventoryPos Position?
+---@param seedInventoryPos Position?
+local function reportStorageCrops(
+    action, storageFarmSize, sort, inventoryPos, seedInventoryPos
+)
+    if sort == nil then
+        sort = true
+    end
+
+    -- Scans storage farm
+    local breedPositions = {}
+    local countFarm = 0
     for _, pos in posUtil.allStoragePos(storageFarmSize) do
         gps.go(pos)
         local posStr = posUtil.posToString(pos)
         local scanned = action:scanBelow()
         if scanned.isCrop then
-            local cropName = scanned.name
-            breeds[cropName] = true
-            if not positions[cropName] then
-                positions[cropName] = { posStr }
-                numBreeds = numBreeds + 1
+            local breed = scanned.name
+            if not breedPositions[breed] then
+                breedPositions[breed] = { posStr }
             else
-                positions[cropName][#positions[cropName] + 1] = posStr
+                breedPositions[breed][#breedPositions[breed] + 1] = posStr
             end
+            countFarm = countFarm + 1
         end
     end
 
     local dupeReports = {}
-    for name, pos in pairs(positions) do
-        if #pos > 1 then
-            dupeReports[#dupeReports+1] = name .. ": " .. table.concat(pos, ", ")
+    if countFarm > 0 then
+        for breed, positions in pairs(breedPositions) do
+            if #positions > 1 then
+                dupeReports[#dupeReports + 1] = breed .. ": " .. table.concat(positions, ", ")
+            end
+        end
+    end
+    local countDupesInFarm = #dupeReports
+
+    local breeds = breedPositions
+    local dupeInvReports = {}
+    local countInv = 0
+    local countCommon = 0
+    -- Scans seeds in inventories
+    if inventoryPos then
+        local breedsInv = action:getBreedsFromSeedsInInventory(inventoryPos)
+        if seedInventoryPos then
+            breedsInv = utils.mergeSets(
+                breedsInv,
+                action:getBreedsFromSeedsInInventory(seedInventoryPos)
+            )
+        end
+
+        if next(breedsInv) == nil then
+            print("Seeds inventory is empty.")
+        else
+            -- Finds dupes between farm and inventory
+            for breed in pairs(breedsInv) do
+                local positions = breedPositions[breed]
+                if positions then
+                    dupeInvReports[#dupeInvReports + 1] = (
+                        breed .. ": " .. table.concat(positions, ", "))
+                    countCommon = countCommon + 1
+                end
+                countInv = countInv + 1
+            end
+            breeds = utils.mergeSets(breeds, breedsInv)
         end
     end
 
-    if numBreeds == 0 then
-        print("Storage farm is empty.")
-        return
-    end
-
-    if #dupeReports > 0 then
-        print("Duplicate crops in storage farm: ")
-        print(table.concat(dupeReports, "\n"))
+    -- Report
+    if countFarm > 0 then
+        print(string.format("Found %d crops in storage farm.", countFarm))
+        if countDupesInFarm > 0 then
+            print("Duplicate crops in storage farm:")
+            print(table.concat(dupeReports, "\n"))
+        else
+            print("No duplicate crops were found.")
+        end
     else
-        print("No duplicate crops in storage farm")
+        print("Storage farm is empty.")
     end
 
     print()
-    print(string.format("All %d breeds in storage farm:", numBreeds))
-    for name, _ in pairs(breeds) do
-        print(string.format('"%s",', name))
+    if countInv > 0 then
+        print(string.format("Found %d distinct seeds in inventory.", countInv))
+        if #dupeInvReports > 0 then
+            print()
+            print(countCommon .. " crops in both storage farm and inventory:")
+            print(table.concat(dupeInvReports, "\n"))
+        end
+    else
+        print(string.format("No seeds were found in inventory."))
     end
-    gps.backOrigin()
+
+    local breedsList = utils.setToList(breeds)
+    if sort then
+        table.sort(breedsList)
+    end
+    local countDistinct = countFarm - countDupesInFarm + countInv - countCommon
+    print()
+    print(string.format("All %d distinct crops: {", countDistinct))
+    for _, breed in ipairs(breedsList) do
+        print(string.format('    "%s",', breed))
+    end
+    print("}")
 end
 
 local function main(args, breedFarmSize, storageFarmSize)
     if args[1] then
         local arg1 = args[1]
         if arg1 == "-h" or arg1 == "--help" or arg1 == "help" then
-            print("autoCrossbreed [-h|--help|help]")
-            print("autoCrossbreed reportStorageCrops")
-            print()
-            print("reportStorageCrops: scans storage farm and prints duplicate crops and all breeds")
+            print([[autoCrossbreed [-h|--help|help]
+autoCrossbreed reportStorageCrops
+
+"reportStorageCrops" reports duplicate crops and all distinct crops by
+scanning crops in storage farm and seeds in storage inventory.
+The inventory position to be scanned is set by storagePos in config.]])
             return
         elseif arg1 == "reportStorageCrops" then
-            reportStorageCrops(storageFarmSize)
+            local action = Action:new()
+            reportStorageCrops(action, storageFarmSize, true, action.storagePos, { 0, 7 })
+            gps.backOrigin()
             return
         else
             io.stderr:write("unknown argument: " .. arg1)
@@ -77,11 +143,10 @@ local function main(args, breedFarmSize, storageFarmSize)
     action:checkEquipment(true, true, true)
     print("Working in auto-crossbreeding mode...")
     local farmer = Crossbreeder:new(action)
-    local storageCrops, reverseStorageCrops, storageEmptyLands =
-        action:scanFarm(
-            posUtil.allStoragePos(storageFarmSize),
-            config.checkStorageFarmland
-        )
+    local storageCrops, reverseStorageCrops, storageEmptyLands = action:scanFarm(
+        posUtil.allStoragePos(storageFarmSize),
+        config.checkStorageFarmland
+    )
     local storageFarm = StorageFarm:new(
         storageFarmSize, storageCrops, reverseStorageCrops, storageEmptyLands,
         config.cropsBlacklist
@@ -95,9 +160,10 @@ local function main(args, breedFarmSize, storageFarmSize)
     farmer:breedLoop(breedFarm, storageFarm)
 end
 
-local function testReportStorage()
-    local size = 2
-    reportStorageCrops(size)
+local function testReportStorageCrops()
+    local action = Action:new()
+    reportStorageCrops(action, 6, true, action.storagePos, { 0, 7 })
+    gps.backOrigin()
 end
 
 main({ ... }, config.breedFarmSize, config.storageFarmSize)

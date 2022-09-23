@@ -3,9 +3,9 @@ local robot = require("robot")
 local computer = require("computer")
 local os = require("os")
 local sides = require("sides")
+
 local gps = require("gps")
 local signal = require("signal")
-
 local posUtil = require("posUtil")
 local utils = require("utils")
 local Deque = utils.Deque
@@ -328,6 +328,24 @@ function Action:checkEquipment(checkSpade, checkBinder, checkSticks)
         io.stderr:write(table.concat(msg, "; "))
         os.exit(false)
     end
+end
+
+---Returns a set of crop names from seed bags in the storage at the position
+---@param storagePos Position
+---@return Set<string>
+function Action:getBreedsFromSeedsInInventory(storagePos)
+    gps.go(storagePos)
+    local breeds = {}
+    for stack in inventoryController.getAllStacks(sides.down) do
+        if stack.name == utils.SEED_BAG_MCNAME then
+            -- Seed bags might not be scanned yet
+            if stack.crop then
+                local cropName = stack.crop.name
+                breeds[cropName] = true
+            end
+        end
+    end
+    return breeds
 end
 
 ---Breaks all weeds and crop sticks in breed farm
