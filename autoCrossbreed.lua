@@ -7,15 +7,35 @@ local CrossbreedFarm = require "farms.CrossbreedFarm"
 local Crossbreeder = require "farmers.Crossbreeder"
 local utils = require "utils"
 
-local DESCRIPTIONS = {
-    "autoCrossbreed [-h|--help|help]",
-    "autoCrossbreed reportStorageCrops",
-    "",
-    '"reportStorageCrops" reports duplicate crops and all distinct crops by scanning crops in storage farm.',
-    'The "All crops" portion of the report can be used to fill out \'cropsBlacklist\' in config.',
-    "Also, when 'scansSeed' is set in config, it scans seeds in the inventory at 'storagePos'.",
-    "An extra storage will also be scanned for seeds if 'extraSeedsStoragePos' is set.",
-}
+local DESCRIPTIONS = [[
+Usage:
+autoCrossbreed [-h|--help|help]
+
+Keeps crossbreeding in breed farm and saving new breeds to storage farm until 'maxBreedRound' is reached or storage farm is full.
+Higher-tier crops obtained along the process will constantly replace lower-tier parent crops to get higher-tier breeds.
+
+Subcommands:
+autoCrossbreed reportStorage [-h|--help|help]
+autoCrossbreed cleanUp [-h|--help|help]
+]]
+
+local DESCRIPTIONS_REPORT_STORAGE = [[
+Usage:
+autoCrossbreed reportStorage [-h|--help|help]
+
+Reports duplicate crops and all distinct kinds of crops by scanning the storage farm.
+Also, when 'scansSeeds' is set in config, it scans seeds in the inventory at 'storagePos' to take those into account in report.
+An extra storage will also be scanned for seeds if 'extraSeedsStoragePos' config is present.
+
+The "All crops" portion of the report can be used to fill out 'cropsBlacklist' in config.
+]]
+
+local DESCRIPTIONS_CLEANUP = [[
+Usage:
+autoCrossbreed cleanUp [-h|--help|help]
+
+Destroys weeds, crops that act like weeds, and crop sticks in storage and breed farms.
+]]
 
 
 ---@param action Action
@@ -24,7 +44,7 @@ local DESCRIPTIONS = {
 ---@param scansSeeds boolean?
 ---@param inventoryPos Position?
 ---@param seedInventoryPos Position?
-local function reportStorageCrops(
+local function reportStorage(
     action, storageFarmSize, sort, scansSeeds, inventoryPos, seedInventoryPos
 )
     if sort == nil then
@@ -152,13 +172,26 @@ local function main(args, breedFarmSize, storageFarmSize)
     if args[1] then
         local arg1 = args[1]
         if arg1 == "-h" or arg1 == "--help" or arg1 == "help" then
-            print(table.concat(DESCRIPTIONS, "\n"))
+            print(DESCRIPTIONS)
             return
-        elseif arg1 == "reportStorageCrops" then
-            reportStorageCrops(
+        elseif arg1 == "reportStorage" then
+            if args[2] == "-h" or args[2] == "--help" or args[2] == "help" then
+                print(DESCRIPTIONS_REPORT_STORAGE)
+                return
+            end
+            reportStorage(
                 action, storageFarmSize, true,
                 config.scansSeeds, action.storagePos, config.extraSeedsStoragePos
             )
+            gps.backOrigin()
+            return
+        elseif arg1 == "cleanUp" then
+            if args[2] == "-h" or args[2] == "--help" or args[2] == "help" then
+                print(DESCRIPTIONS_CLEANUP)
+                return
+            end
+            action:equippedOrExit(true, false, false)
+            cleanUp(action, breedFarmSize, storageFarmSize)
             gps.backOrigin()
             return
         else
@@ -204,19 +237,19 @@ end
 
 local function testReportStorageCropsWithSeeds()
     local action = Action:new()
-    reportStorageCrops(action, 2, true, true, action.storagePos, { 0, 7 })
+    reportStorage(action, 2, true, true, action.storagePos, { 0, 7 })
     gps.backOrigin()
 end
 
 local function testReportStorageCropsWithSeedsWrongArg()
     local action = Action:new()
-    reportStorageCrops(action, 2, true, true)
+    reportStorage(action, 2, true, true)
     gps.backOrigin()
 end
 
 local function testReportStorageCrops()
     local action = Action:new()
-    reportStorageCrops(action, 2, true, false)
+    reportStorage(action, 2, true, false)
     gps.backOrigin()
 end
 

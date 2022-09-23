@@ -1,13 +1,19 @@
 local Action = require "action"
 local gps = require "gps"
 
+local DESCRIPTIONS = [[
+Usage:
+transplant [-h|--help|help] x1 y1 x2 y2
+
+Transplants a crop at one position to another.
+Positions are relative to robot's initial position (0, 0), e.g.
+
+transplant -1 0 1 2
+]]
+
 local function main(args)
     if args[1] == "-h" or args[1] == "--help" or args[1] == "help" then
-        print(
-            "transplant [-h|--help|help] x1 y1 x2 y2\n\n" ..
-            "Orders robot to transplant one crop to a position. " ..
-            "Positions are relative to robot's initial position (0, 0)."
-        )
+        print(DESCRIPTIONS)
         return
     end
 
