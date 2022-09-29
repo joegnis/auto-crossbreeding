@@ -47,15 +47,24 @@ Explanation in config.lua
     wget https://raw.githubusercontent.com/joegnis/auto-crossbreeding/main/install.lua
     ./install.lua
 
-If you run install after the installation, it will update all the files except for config files.
+```
+Usage:
+./install [-b|--branch BRANCH] [-u|--update-file FILE]
+./install [-b|--branch BRANCH] [-c|--update-config]
+./install --help | -h
 
-If you want to update all config files, run:
+Options:
+  -b --branch BRANCH     Downloads from a specific branch. Default is main.
+  -u --update-file FILE  Updates a specific file.
+  -c --update-config     Updates all config files.
+  -h --help              Shows this message.
 
-    ./install.lua main --update-config
+By default, this script always (re)downloads all source files except for
+config files. For config files, it downloads all missing ones but does
+not download existing ones.
 
-If you want to update one of the config files (actually any source files), run like:
-
-    ./install.lua main -u config.lua
+When it updates a config file, it backs up existing one before proceeding.
+```
 
 ## To Run
 
@@ -68,4 +77,4 @@ For crossbreeding automatically:
 To install dev branch:
 
     wget https://raw.githubusercontent.com/joegnis/auto-crossbreeding/dev/install.lua
-    ./install.lua
+    ./install.lua -b dev

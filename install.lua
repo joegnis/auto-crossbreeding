@@ -1,8 +1,9 @@
 local shell = require("shell")
 local filesystem = require("filesystem")
 
-local repo = "https://raw.githubusercontent.com/joegnis/auto-crossbreeding";
-local scripts = {
+local REPO = "https://raw.githubusercontent.com/joegnis/auto-crossbreeding"
+local DEFAULT_BRANCH = "main"
+local SCRIPTS = {
     "action.lua",
     "autoCrossbreed.lua",
     "autoSpread.lua",
@@ -23,22 +24,22 @@ local scripts = {
     "tests_in_game/test_posUtil.lua",
     "tests_in_game/test_StorageFarm.lua",
 }
-local configs = {
+local CONFIGS = {
     "config.lua",
     "autoCrossbreedConfig.lua"
 }
-local directories = {
-    "farmers",
-    "farms",
-    "tests_in_game",
-}
-local DESCRIPTIONS = {
-    "Usage:",
-    "./install [--help|-h]",
-    "./install branch",
-    "./install branch --update-config",
-    "./install branch -u [file]",
-}
+local DESCRIPTIONS = string.format([[
+Usage:
+./install [-b|--branch BRANCH] [-u|--update-file FILE]
+./install [-b|--branch BRANCH] [-c|--update-config]
+./install --help | -h
+
+Options:
+  -b --branch BRANCH     Downloads from a specific branch. Default is %s.
+  -u --update-file FILE  Updates a specific file.
+  -c --update-config     Updates all config files.
+  -h --help              Shows this message.
+]], DEFAULT_BRANCH)
 
 ---@param filename string
 ---@return boolean
@@ -46,20 +47,37 @@ local function exists(filename)
     return filesystem.exists(shell.getWorkingDirectory() .. "/" .. filename)
 end
 
+---Creates all missing directories along a path to a file
 ---@param file string
----@param repoURL string
+local function createDirectoriesAlongPathToFile(file)
+    local relPath = filesystem.path(file)
+    local absPath = filesystem.canonical(
+        string.format(
+            "%s/%s",
+            shell.getWorkingDirectory(),
+            relPath
+        )
+    )
+    if filesystem.makeDirectory(absPath) then
+        print("Created directory " .. relPath)
+    end
+end
+
+---@param file string
+---@param repo string
 ---@param branch string
-local function downloadFile(file, repoURL, branch)
+local function downloadFile(file, repo, branch)
+    createDirectoriesAlongPathToFile(file)
     shell.execute(string.format(
         "wget -f %s/%s/%s ./%s",
-        repoURL, branch, file, file
+        repo, branch, file, file
     ))
 end
 
 ---@param config string
----@param repoURL string
+---@param repo string
 ---@param branch string
-local function downloadConfig(config, repoURL, branch)
+local function downloadConfig(config, repo, branch)
     local backup = config .. ".bak"
     if exists(config) then
         if exists(backup) then
@@ -68,59 +86,50 @@ local function downloadConfig(config, repoURL, branch)
         shell.execute(string.format("mv %s %s", config, backup))
         print(string.format("Backed up %s as %s", config, backup))
     end
-    downloadFile(config, repoURL, branch)
+    downloadFile(config, repo, branch)
 end
 
 local function main(args)
-    local branch
-    local option
-    if #args == 0 then
-        branch = "main"
-    else
-        branch = args[1]
-    end
-
-    if branch == "--help" or branch == "-h" then
-        print(table.concat(DESCRIPTIONS, "\n"))
+    local numArgs = 1
+    local curArg = args[numArgs]
+    if curArg == "--help" or curArg == "-h" then
+        print(DESCRIPTIONS)
         return true
-    elseif string.find(branch, "^-") then
-        io.stderr:write("invalid branch name: " .. branch)
-        return false
     end
 
-    if args[2] ~= nil then
-        option = args[2]
-    end
-
-    if option == "--update-config" then
-        for _, config in ipairs(configs) do
-            downloadConfig(config, repo, branch)
+    local branch = DEFAULT_BRANCH
+    if curArg == "--branch" or curArg == "-b" then
+        branch = args[numArgs + 1]
+        numArgs = numArgs + 2
+        if string.find(branch, "^-") then
+            io.stderr:write("invalid branch name: " .. branch)
+            return false
         end
-    elseif option == "-u" then
-        local fileArg = args[3]
-        for _, config in ipairs(configs) do
+    end
+
+    local option = args[numArgs]
+    if option == "-c" or option == "--update-config" then
+        for _, config in ipairs(CONFIGS) do
+            downloadConfig(config, REPO, branch)
+        end
+    elseif option == "-u" or option == "--update-file" then
+        local fileArg = args[numArgs + 1]
+        numArgs = numArgs + 2
+        for _, config in ipairs(CONFIGS) do
             if fileArg == config then
-                downloadConfig(fileArg, repo, branch)
+                downloadConfig(fileArg, REPO, branch)
                 return true
             end
         end
-        downloadFile(fileArg, repo, branch)
+        downloadFile(fileArg, REPO, branch)
     elseif option == nil then
-        for _, dir in ipairs(directories) do
-            if not exists(dir) then
-                shell.execute("mkdir " .. dir)
-            else
-                print("Skipped creating existing directory: " .. dir)
-            end
+        for _, script in ipairs(SCRIPTS) do
+            downloadFile(script, REPO, branch)
         end
 
-        for _, script in ipairs(scripts) do
-            downloadFile(script, repo, branch)
-        end
-
-        for _, config in ipairs(configs) do
+        for _, config in ipairs(CONFIGS) do
             if not exists(config) then
-                downloadFile(config, repo, branch)
+                downloadFile(config, REPO, branch)
             else
                 print("Skipped existing config file: " .. config)
             end
