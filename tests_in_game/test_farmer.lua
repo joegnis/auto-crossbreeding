@@ -1,9 +1,9 @@
-local Action = require "action"
-local gps = require "gps"
 local posUtil = require "posUtil"
-local Crossbreeder = require "farmers.Crossbreeder"
 local CrossbreedFarm = require "farms.CrossbreedFarm"
 local StorageFarm = require "farms.StorageFarm"
+
+local testUtils = require "tests_in_game.utils"
+
 
 --[[
     Mainly tests two cases:
@@ -14,43 +14,42 @@ local StorageFarm = require "farms.StorageFarm"
 local function testBreed()
     local breedSize = 3
     local storageSize = 3
-    local action = Action:new()
-    action:equippedOrExit(true, true, true)
-    local worker = Crossbreeder:new(action)
-    local storageCrops, reverseStorageCrops, storageEmptyLands =
-    action:scanFarm(posUtil.allStoragePos(storageSize), false)
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:equippedOrExit(true, true, true)
+    local storageCrops, storageEmptyLands =
+    farmer:scanFarm(StorageFarm:iterAllSlotPos(storageSize), false)
     local storageFarm = StorageFarm:new(
-        storageSize, storageCrops, reverseStorageCrops, storageEmptyLands,
+        storageSize, storageCrops, storageEmptyLands,
         { "Micadia", "Titania", "God of Thunder", "Essence Berry", "Copper Oreberry" }
     )
-    local breedFarm = CrossbreedFarm:new(breedSize, action:scanFarm(posUtil.allBreedParentsPos(breedSize)))
-    worker:breed(breedFarm, storageFarm)
-    gps.backOrigin()
+    local breedFarm = CrossbreedFarm:new(breedSize, farmer:scanFarm(posUtil.allBreedParentsPos(breedSize)))
+    farmer:breed(breedFarm, storageFarm)
+    farmer.gps:backOrigin()
 end
 
 local function testScanCrossbreedFarm()
     local size = 5
-    local action = Action:new()
-    local farm = CrossbreedFarm:new(size, action:scanFarm(posUtil.allBreedParentsPos(size)))
+    local farmer = testUtils.createTestFarmer()
+    local farm = CrossbreedFarm:new(size, farmer:scanFarm(posUtil.allBreedParentsPos(size)))
     print(farm:reportLowest())
-    gps.go({ 0, 0 })
+    farmer.gps:backOrigin()
 end
 
 local function testBreedLoop()
     local breedSize = 4
     local storageSize = 3
-    local action = Action:new()
-    action:equippedOrExit(true, true, true)
-    local worker = Crossbreeder:new(action)
-    local storageCrops, reverseStorageCrops, storageEmptyLands =
-    action:scanFarm(posUtil.allStoragePos(storageSize), false)
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:equippedOrExit(true, true, true)
+    local storageCrops, storageEmptyLands = farmer:scanFarm(
+        StorageFarm:iterAllSlotPos(storageSize), false
+    )
     local storageFarm = StorageFarm:new(
-        storageSize, storageCrops, reverseStorageCrops, storageEmptyLands,
+        storageSize, storageCrops, storageEmptyLands,
         { "Micadia", "Titania", "God of Thunder", "Essence Berry", "Copper Oreberry" }
     )
-    local breedFarm = CrossbreedFarm:new(breedSize, action:scanFarm(posUtil.allBreedParentsPos(breedSize)))
-    worker:breedLoop(breedFarm, storageFarm)
-    gps.backOrigin()
+    local breedFarm = CrossbreedFarm:new(breedSize, farmer:scanFarm(posUtil.allBreedParentsPos(breedSize)))
+    farmer:breedLoop(breedFarm, storageFarm)
+    farmer.gps:backOrigin()
 end
 
 testBreedLoop()

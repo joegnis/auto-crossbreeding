@@ -1,39 +1,79 @@
-local utils = require "utils"
+local Deque = require "utils".Deque
+local Farm = require "farms.Farm"
 local posUtil = require "posUtil"
+local utils = require "utils"
 
 
----@class StorageFarm
+---@class StorageFarm: FarmBase
 ---@field storage_ table<integer, ScannedInfo>
 ---@field reverseStorage_ table<string, integer>
 ---@field size_ integer
 ---@field emptyFarmlands_ Deque
 ---@field cropsBlacklist_ Set<string>
 ---@field countBreeds_ integer
-local StorageFarm = {}
+local StorageFarm = Farm:newChildClass()
 
----Creates a StorageFarm instance
+----------------------------------------
+-- Inherited Class & Instance Methods --
+----------------------------------------
+
+---Given a slot in the farm, returns its position
+---@param slot integer
+---@param size integer? farm's size
+---@return Position
+function StorageFarm:slotToPos(slot, size)
+    size = size or self.size_
+    local pos = posUtil.breedSlotToPos(slot, size)
+    pos[1] = -pos[1]
+    return pos
+end
+
+---Given a position, returns its corresponding slot in the farm
+---@param pos Position
+---@param size integer? farm's size
+---@return integer
+function StorageFarm:posToSlot(pos, size)
+    size = size or self.size_
+    return posUtil.posToBreedSlot({ -pos[1], pos[2] }, size)
+end
+
+---@param pos Position
+---@param size integer?
+function StorageFarm:isPosInFarm(pos, size)
+    size = size or self.size_
+    local x, y = table.unpack(pos)
+    return x < 0 and x >= -size and y >= 0 and y < size
+end
+
+-----------------------------
+-- Inherited Class Methods --
+-----------------------------
+
+---Creates a StorageFarm instance.
+---When "cropsBlacklist" is present, "cropExists" check will always return
+---true for those crops in the list.
 ---@param size integer
 ---@param cropsInfo table<integer, ScannedInfo>
----@param reverseCropsInfo table<string, integer>
----@param emptyFarmlands Deque
----@param cropsBlacklist string[]? actually a Set, with case-insensitive crop names
+---@param emptyFarmlands integer[]
+---@param cropsBlacklist string[]? an array of case-insensitive crop names
 ---@return StorageFarm
 function StorageFarm:new(
-    size, cropsInfo, reverseCropsInfo, emptyFarmlands,
+    size, cropsInfo, emptyFarmlands,
     cropsBlacklist
 )
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
+    o:superClass().init_(o, size)
 
-    o.size_ = size
     o.storage_ = cropsInfo
-    o.emptyFarmlands_ = emptyFarmlands
+    o.emptyFarmlands_ = Deque:newFromTable(emptyFarmlands)
 
     o.reverseStorage_ = {}
-    for name, slot in pairs(reverseCropsInfo) do
-        o.reverseStorage_[string.lower(name)] = slot
+    for slot, info in pairs(cropsInfo) do
+        o.reverseStorage_[string.lower(info.name)] = slot
     end
+    o.countBreeds_ = utils.sizeOfTable(o.reverseStorage_)
 
     cropsBlacklist = cropsBlacklist or {}
     o.cropsBlacklist_ = {}
@@ -43,28 +83,14 @@ function StorageFarm:new(
 
     print(string.format(
         "Storage farm: %d slots in total; %d still available; black list: [%s]",
-        size ^ 2, emptyFarmlands:size(), table.concat(cropsBlacklist, ", ")
+        size ^ 2, #emptyFarmlands, table.concat(cropsBlacklist, ", ")
     ))
-
-    local countBreeds = 0
-    for _, _ in pairs(reverseCropsInfo) do
-        countBreeds = countBreeds + 1
-    end
-    o.countBreeds_ = countBreeds
     return o
 end
 
-function StorageFarm:size()
-    return self.size_
-end
-
-function StorageFarm:posToSlot(pos)
-    return posUtil.posToStorageSlot(pos, self.size_)
-end
-
-function StorageFarm:slotToPos(slot)
-    return posUtil.storageSlotToPos(slot, self.size_)
-end
+----------------------
+-- Instance Methods --
+----------------------
 
 function StorageFarm:isFull()
     return 0 == self.emptyFarmlands_:size()
@@ -78,7 +104,7 @@ function StorageFarm:addCrop(crop, transplantCropTo)
         error("Storage farm is full.", 2)
     end
     local slot = self.emptyFarmlands_:popLast()
-    transplantCropTo(posUtil.storageSlotToPos(slot, self.size_))
+    transplantCropTo(self.slotToPos(slot, self.size_))
     self.storage_[slot] = crop
     -- case insensitive
     local cropName = string.lower(crop.name)

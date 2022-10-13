@@ -6,27 +6,30 @@ local DEFAULT_BRANCH = "main"
 local SCRIPTS = {
     "action.lua",
     "autoCrossbreed.lua",
-    "autoSpread.lua",
     "autoStat.lua",
     "gps.lua",
     "posUtil.lua",
     "signal.lua",
     "transplant.lua",
     "utils.lua",
-    "farmers/Crossbreeder.lua",
     "farmers/Farmer.lua",
+    "farmers/Crossbreeder.lua",
+    "farmers/StatFarmer.lua",
     "farms/BreedFarm.lua",
-    "farms/CrossbreedFarm.lua",
     "farms/StorageFarm.lua",
+    "farms/CrossbreedFarm.lua",
+    "farms/StatFarm.lua",
     "tests_in_game/test_action.lua",
     "tests_in_game/test_farmer.lua",
     "tests_in_game/test_gps.lua",
     "tests_in_game/test_posUtil.lua",
     "tests_in_game/test_StorageFarm.lua",
+    "tests_in_game/utils.lua",
 }
 local CONFIGS = {
     "config.lua",
-    "autoCrossbreedConfig.lua"
+    "autoCrossbreedConfig.lua",
+    "autoStatConfig.lua",
 }
 local DESCRIPTIONS = string.format([[
 Usage:

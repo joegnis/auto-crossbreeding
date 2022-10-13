@@ -1,9 +1,10 @@
-local gps = require "gps"
+local testUtils = require "tests_in_game.utils"
 
 
 local function testBackOrig()
-    gps.go({ 0, 9 })
-    gps.backOrigin()
+    local farmer = testUtils.createTestFarmer()
+    farmer.gps:go({ 0, 9 })
+    farmer.gps:backOrigin()
 end
 
 testBackOrig()

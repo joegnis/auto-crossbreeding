@@ -58,7 +58,7 @@ local function reportStorage(
     -- Scans storage farm
     local breedPositions = {}
     local countFarm = 0
-    for _, pos in posUtil.allStoragePos(storageFarmSize) do
+    for _, pos in StorageFarm:iterAllSlotPos(storageFarmSize) do
         gps.go(pos)
         local posStr = posUtil.posToString(pos)
         local scanned = action:scanBelow()
@@ -88,7 +88,7 @@ local function reportStorage(
     local countInv = 0
     local countCommon = 0
     -- Scans seeds in inventories
-    if scansSeeds then
+    if scansSeeds and inventoryPos then
         local breedsInv = action:getBreedsFromSeedsInInventory(inventoryPos)
         if seedInventoryPos then
             breedsInv = utils.mergeSets(
@@ -158,10 +158,46 @@ end
 ---@param breedFarmSize integer
 ---@param storageFarmSize integer
 local function cleanUp(action, breedFarmSize, storageFarmSize)
-    action:cleanUpFarm(posUtil.allBreedPos(breedFarmSize))
-    action:cleanUpFarm(posUtil.allStoragePos(storageFarmSize))
+    action:cleanUpFarm(CrossbreedFarm:iterAllSlotPos(breedFarmSize))
+    action:cleanUpFarm(StorageFarm:iterAllSlotPos(storageFarmSize))
     action:dumpLoots()
     gps.backOrigin()
+end
+
+---@param action Action
+---@param breedFarmSize integer
+---@param storageFarmSize integer
+local function autoCrossbreed(action, breedFarmSize, storageFarmSize)
+    action:equippedOrExit(true, true, true)
+    print(string.format(
+        "Started auto-crossbreeding. Breed farm size: %d, storage farm size: %d.",
+        breedFarmSize, storageFarmSize
+    ))
+    -- Scans storage farm first
+    local storageFarm = action:scanStorageFarm(
+        storageFarmSize, config.checkStorageFarmland, config.cropsBlacklist
+    )
+    -- ensures that robot does not wander around too far out, e.g. too far off ground
+    gps.backOrigin()
+    -- Scans breed farm
+    local breedFarm = CrossbreedFarm:new(
+        breedFarmSize,
+        action:scanFarm(posUtil.allBreedParentsPos(breedFarmSize), config.checkBreedFarmland)
+    )
+    local farmer = Crossbreeder:new(action)
+    utils.safeDoPrintError(
+        function()
+            farmer:breedLoop(breedFarm, storageFarm)
+        end,
+        function()
+            print("Breeding completed. Cleaning up farms...")
+            cleanUp(action, breedFarmSize, storageFarmSize)
+        end,
+        function()
+            print("Something went wrong during breeding. Cleaning up farms...")
+            cleanUp(action, breedFarmSize, storageFarmSize)
+        end
+    )
 end
 
 ---@param args string[]
@@ -200,39 +236,7 @@ local function main(args, breedFarmSize, storageFarmSize)
         end
     end
 
-    action:equippedOrExit(true, true, true)
-    print(string.format(
-        "Started auto-crossbreeding. Breed farm size: %d, storage farm size: %d.",
-        breedFarmSize, storageFarmSize
-    ))
-    local farmer = Crossbreeder:new(action)
-    local storageCrops, reverseStorageCrops, storageEmptyLands = action:scanFarm(
-        posUtil.allStoragePos(storageFarmSize),
-        config.checkStorageFarmland
-    )
-    local storageFarm = StorageFarm:new(
-        storageFarmSize, storageCrops, reverseStorageCrops, storageEmptyLands,
-        config.cropsBlacklist
-    )
-    -- ensures that robot does not wander around too far out, e.g. too far off ground
-    gps.backOrigin()
-    local breedFarm = CrossbreedFarm:new(
-        breedFarmSize,
-        action:scanFarm(posUtil.allBreedParentsPos(breedFarmSize), config.checkBreedFarmland)
-    )
-    utils.safeDoPrintError(
-        function()
-            farmer:breedLoop(breedFarm, storageFarm)
-        end,
-        function()
-            print("Breeding completed. Cleaning up farms...")
-            cleanUp(action, breedFarmSize, storageFarmSize)
-        end,
-        function()
-            print("Something went wrong during breeding. Cleaning up farms...")
-            cleanUp(action, breedFarmSize, storageFarmSize)
-        end
-    )
+    autoCrossbreed(action, breedFarmSize, storageFarmSize)
 end
 
 local function testReportStorageCropsWithSeeds()

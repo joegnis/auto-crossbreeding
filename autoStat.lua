@@ -1,152 +1,106 @@
-local gps = require("gps")
-local action = require("action")
-local database = require("database")
-local scanner = require("scanner")
-local posUtil = require("posUtil")
-local config = require("config")
+local Action = require "action"
+local config = require "autoStatConfig"
+local gps = require "gps"
+local StatFarm = require "farms.StatFarm"
+local StatFarmer = require "farmers.StatFarmer"
+local utils = require "utils"
 
-local args = { ... }
-local nonstop = false
-local docleanup = false
-if #args == 1 then
-    if args[1] == "docleanup" then
-        docleanup = true
-    elseif args[1] == "nonstop" then
-        nonstop = true
-    end
-end
 
-local lowestStat;
-local lowestStatSlot;
-local workingCrop;
+local DESCRIPTION = string.format([[
+Usage:
+./autoStat --help | -h
 
-local function updateLowest()
-    lowestStat = 64
-    lowestStatSlot = 0
-    local farm = database.getFarm()
-    local workingCropName = database.getFarm()[1].name
-    for slot = 1, config.farmArea, 2 do
-        local crop = farm[slot]
-        if crop ~= nil then
-            if crop.name == 'crop' then
-                lowestStatSlot = slot
-                break;
-            else
-                local stat = crop.gr + crop.ga - crop.re
-                if stat < lowestStat then
-                    lowestStat = stat
-                    lowestStatSlot = slot
-                end
-            end
+Options:
+  -h --help              Shows this message.
+]])
+
+---Scans breed farm and creates a StatFarm action
+---@param action Action
+---@param size integer
+---@param checkFarmland boolean
+---@return StatFarm?
+---@return string? errMsg
+local function scanBreedFarm(action, size, checkFarmland)
+    print("Scanning center slots...")
+    local centerCrops, emptyCenterSlots = action:scanFarm(
+        StatFarm:iterCenterParentSlotPos(size),
+        checkFarmland
+    )
+    local targetCrops = {}
+    for _, scannedInfo in pairs(centerCrops) do
+        if scannedInfo.isCrop then
+            targetCrops[#targetCrops + 1] = scannedInfo.name
         end
     end
-end
-
-local function findSuitableFarmSlot(crop)
-    if crop.gr + crop.ga - crop.re > lowestStat then
-        return lowestStatSlot
-    else
-        return 0
+    local targetCropsSet = utils.listToSet(targetCrops)
+    if utils.sizeOfTable(targetCropsSet) > 1 then
+        return nil, "More than one crops are found on center slots: " .. utils.setToString(targetCropsSet)
     end
-end
 
-local function isWeed(crop)
-    return crop.name == "weed" or
-        crop.name == "Grass" or
-        crop.gr > 21 or
-        (crop.name == "venomilia" and crop.gr > 7);
-end
+    print("Scanning other parent slots...")
+    local nonCenterParentCrops, emptyNonCenterParentSlots = action:scanFarm(
+        StatFarm:iterNonCenterParentSlotPos(size),
+        checkFarmland
+    )
 
-local function checkOffspring(slot, crop)
-    if crop.name == "air" then
-        action.placeCropStick(2)
-    elseif (not config.assumeNoBareStick) and crop.name == "crop" then
-        action.placeCropStick()
-    elseif crop.isCrop then
-        if isWeed(crop) then
-            action.deweed()
-            action.placeCropStick()
-        elseif crop.name == workingCrop then
-            local suitableSlot = findSuitableFarmSlot(crop)
-            if suitableSlot == 0 then
-                action.deweed()
-                action.placeCropStick()
-            else
-                action.transplant(posUtil.farmToGlobal(slot), posUtil.farmToGlobal(suitableSlot))
-                action.placeCropStick(2)
-                database.updateFarm(suitableSlot, crop)
-                updateLowest()
-            end
-        elseif config.keepNewCropWhileMinMaxing and (not database.existInStorage(crop)) then
-            action.transplant(posUtil.farmToGlobal(slot), posUtil.storageToGlobal(database.nextStorageSlot()))
-            action.placeCropStick(2)
-            database.addToStorage(crop)
-        else
-            action.deweed()
-            action.placeCropStick()
-        end
+    -- Merging two pairs of dictionaries
+    local parentCrops = centerCrops
+    for slot, crop in nonCenterParentCrops do
+        parentCrops[slot] = crop
     end
+    print("Done scanning breed farm.")
+    return StatFarm:new(
+        size, targetCrops[1], parentCrops,
+        emptyCenterSlots, emptyNonCenterParentSlots
+    )
 end
 
-local function checkParent(slot, crop)
-    if crop.isCrop and isWeed(crop) then
-        action.deweed();
-        database.updateFarm(slot, { name = 'crop' });
-        updateLowest();
+---@param breedFarmSize integer
+---@param storageFarmSize integer
+local function autoStat(breedFarmSize, storageFarmSize)
+    local action = Action:new()
+    action:equippedOrExit(true, true, true)
+    print(string.format(
+        "Started auto-stat. Breed farm size: %d, storage farm size: %d.",
+        breedFarmSize, storageFarmSize
+    ))
+
+    -- Scans storage farm first
+    local storageFarm = action:scanStorageFarm(storageFarmSize, config.checkStorageFarmland)
+    gps.backOrigin()
+
+    local breedFarm, errMsg = scanBreedFarm(action, breedFarmSize, config.checkBreedFarmland)
+    if not breedFarm then
+        io.stderr:write(errMsg .. "\n")
+        os.exit(false)
     end
+
+    local farmer = StatFarmer:new(action)
+
+    gps.backOrigin()
 end
 
-local function breedOnce()
-    -- return true if all stats are maxed out
-    if not nonstop and lowestStat == config.autoStatTargetStats then
+---@param args string[]
+---@param breedFarmSize integer
+---@param storageFarmSize integer
+local function main(args, breedFarmSize, storageFarmSize)
+    local numArgs = 1
+    local curArg = args[numArgs]
+    if curArg == "--help" or curArg == "-h" then
+        print(DESCRIPTION)
         return true
     end
 
-    for slot = 1, config.farmArea, 1 do
-        gps.go(posUtil.farmToGlobal(slot))
-        local crop = scanner.scan()
-
-        if (slot % 2 == 0) then
-            checkOffspring(slot, crop);
-        else
-            checkParent(slot, crop);
-        end
-
-        if action.needCharge() then
-            action.charge()
-        end
-    end
-    return false
+    autoStat(breedFarmSize, storageFarmSize)
 end
 
-local function init()
-    database.scanFarm()
-    if config.keepNewCropWhileMinMaxing then
-        database.scanStorage()
-    end
-
-    workingCrop = database.getFarm()[1].name;
-
-    updateLowest()
-    action.restockAll()
+local function testTargetCrop()
+    print(locateTargetCrop(Action:new(), 6))
 end
 
-local function main()
-    init()
-    while not breedOnce() do
-        gps.go({ 0, 0 })
-        action.restockAll()
-    end
-    gps.go({ 0, 0 })
-    if docleanup then
-        action.destroyAll()
-        gps.go({ 0, 0 })
-    end
-    if config.takeCareOfDrops then
-        action.dumpInventory()
-    end
-    gps.turnTo(1)
-    print("Done.\nAll crops are now 21/31/0")
+local function testAutoStat()
+    print(autoStat(6, 1))
+    gps.backOrigin()
 end
 
-main()
+main({ ... }, config.breedFarmSize, config.storageFarmSize)

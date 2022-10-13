@@ -1,3 +1,4 @@
+---@type CrossbreedConfig
 local config = {
     ---the side length of the crossbreeding farm
     ---the recommend value is 9 because it's crop-matron's working area size.
@@ -29,5 +30,16 @@ local config = {
         "stickreed",
     }
 }
+
+---@class ConfigBase
+---@field breedFarmSize integer
+---@field storageFarmSize integer
+---@field checkStorageFarmland boolean
+---@field checkBreedFarmland boolean
+
+---@class CrossbreedConfig: ConfigBase
+---@field scansSeeds boolean
+---@field extraSeedsStoragePos Position
+---@field cropsBlacklist string[]
 
 return config

@@ -1,70 +1,105 @@
+local Farm = require "farms.Farm"
 local posUtil = require "posUtil"
 
 
 ---Base class of breed farms
 ---@alias funGetStatScore fun(cropInfo: ScannedInfo): integer
----@class BreedFarm
+---@class BreedFarm: FarmBase
 ---@field size_ integer
 ---@field parentSlotsInfo_ table<integer, ScannedInfo>
----@field reverseParentsInfo_ table<string, integer>
----@field emptyParentSlots_ Deque
----@field lowestStatScore_ integer
----@field lowestStatScoreSlot_ integer
 ---@field getBreedStatScore_ funGetStatScore
-local BreedFarm = {}
+local BreedFarm = Farm:newChildClass()
+
+----------------------------------------
+-- Inherited Class & Instance Methods --
+----------------------------------------
+
+---Given a slot in the farm, returns its position
+---@param slot integer
+---@param size integer? farm's size
+---@return Position
+function BreedFarm:slotToPos(slot, size)
+    size = size or self.size_
+    return posUtil.breedSlotToPos(slot, size)
+end
+
+---Given a position, returns its corresponding slot in the farm
+---@param pos Position
+---@param size integer? farm's size
+---@return integer
+function BreedFarm:posToSlot(pos, size)
+    size = size or self.size_
+    return posUtil.posToBreedSlot(pos, size)
+end
+
+---@param pos Position
+---@param size integer?
+function BreedFarm:isPosInFarm(pos, size)
+    size = size or self.size_
+    local x, y = table.unpack(pos)
+    return x > 0 and x <= size and y >= 0 and y < size
+end
+
+------------------------------
+-- Class & Instance Methods --
+------------------------------
+
+---Creates an iterator of all parent crops' slots and positions
+---@param size integer? breed farm's size
+---@return fun(): integer?, Position?
+function BreedFarm:iterParentSlotPos(size)
+    error("not implemented")
+end
+
+---Tests if a slot is a parent slot
+---@param slot integer
+---@param size integer?
+---@return boolean
+function BreedFarm:isParentSlot(slot, size)
+    error("not implemented")
+end
+
+-----------------------------
+-- Inherited Class Methods --
+-----------------------------
 
 function BreedFarm:new()
     error("should not instantiate BreedFarm", 2)
 end
+
+---@class BreedFarmBase: BreedFarm
+---@field superClass fun(self: BreedFarm): BreedFarmBase
 
 function BreedFarm:newChildClass()
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
 
-    function o:super()
-        return self
+    function o:superClass()
+        return BreedFarm
     end
 
-    return o
+    return o --[[@as BreedFarmBase]]
 end
+
+----------------------
+-- Instance Methods --
+----------------------
 
 ---For child class constructor to call
-function BreedFarm:init_(size, cropsInfo, reverseCropsInfo, emptyFarmlands, getBreedStatScore)
-    self.parentSlotsInfo_ = cropsInfo
-    self.reverseParentsInfo_ = reverseCropsInfo
-    self.emptyParentSlots_ = emptyFarmlands
-    self.size_ = size
-    self.getBreedStatScore_ = getBreedStatScore or function (info)
+---@param size integer
+---@param parentCropsInfo table<integer, ScannedInfo> slot-to-ScannedInfo mapping
+---@param getBreedStatScore funGetStatScore?
+function BreedFarm:init_(size, parentCropsInfo, getBreedStatScore)
+    self:superClass().init_(self, size)
+    self.parentSlotsInfo_ = parentCropsInfo
+    self.getBreedStatScore_ = getBreedStatScore or function(info)
         return info.ga + info.gr - info.re
     end
-    self:updateLowest_()
-end
-
-function BreedFarm:size()
-    return self.size_
-end
-
-function BreedFarm:posToSlot(pos)
-    return posUtil.posToBreedSlot(pos, self.size_)
-end
-
-function BreedFarm:slotToPos(slot)
-    return posUtil.breedSlotToPos(slot, self.size_)
-end
-
-function BreedFarm:isFull()
-    return 0 == self.emptyParentSlots_:size()
 end
 
 function BreedFarm:reportLowest()
-    local crop = self.parentSlotsInfo_[self.lowestStatScoreSlot_]
-    return string.format(
-        "Breed farm: %s has the lowest stat score %d at %s.",
-        self:reportCropQuality(crop),
-        self.lowestStatScore_,
-        posUtil.posToString(self:slotToPos(self.lowestStatScoreSlot_))
-    )
+    error("not implemented")
 end
 
 ---@param crop ScannedInfo
@@ -76,68 +111,73 @@ function BreedFarm:reportCropQuality(crop)
     )
 end
 
----@param crop ScannedInfo the crop to try upgrading with
----@param transplantCropTo fun(parentPos: Position)
----@param noWorseCrop fun() gets called if the provided crop is not better than the existing parent crops
-function BreedFarm:tryUpgradeParentCrop(crop, transplantCropTo, noWorseCrop)
-    local slot
-    if self:isFull() then
-        slot = self:firstParentWorseThan_(crop)
-        if not slot then
-            noWorseCrop()
-            return
+---@param newCrop ScannedInfo the crop to try upgrading with
+---@param funcTransplant fun(parentPos: Position)
+---@param onFail fun() gets called if the provided crop is not better than the existing parent crops
+---@return ScannedInfo? oldCrop
+function BreedFarm:upgradeParentCrop_(newCrop, funcTransplant, onFail)
+    local upgradeSlot, cropToUpgrade = self:nextSlotToUpgrade(newCrop)
+    if upgradeSlot then
+        if cropToUpgrade then
+            print(string.format(
+                "Breed farm: transplanting offspring %s to upgrade parent %s at %s",
+                self:reportCropQuality(newCrop),
+                self:reportCropQuality(cropToUpgrade),
+                posUtil.posToString(self:slotToPos(upgradeSlot))
+            ))
+        else
+            print(string.format(
+                "Breed farm: transplanting offspring %s to %s as new parent",
+                self:reportCropQuality(newCrop), posUtil.posToString(self:slotToPos(upgradeSlot))
+            ))
         end
-        print(string.format(
-            "Breed farm: transplanting offspring %s to upgrade parent %s at %s",
-            self:reportCropQuality(crop),
-            self:reportCropQuality(self.parentSlotsInfo_[slot]),
-            posUtil.posToString(self:slotToPos(slot))
-        ))
+        funcTransplant(self:slotToPos(upgradeSlot))
+        self.parentSlotsInfo_[upgradeSlot] = newCrop
+        self:onParentSlotsChanged_()
+        self:onParentCropUpgraded_(newCrop, upgradeSlot, cropToUpgrade)
     else
-        slot = self.emptyParentSlots_:popLast()
-        print(string.format(
-            "Breed farm: transplanting offspring %s to %s as new parent",
-            self:reportCropQuality(crop), posUtil.posToString(self:slotToPos(slot))
-        ))
+        onFail()
     end
-    transplantCropTo(self:slotToPos(slot))
-    self.parentSlotsInfo_[slot] = crop
-    self:updateLowest_()
 end
 
+---@param slot integer
 function BreedFarm:removeParentCropAt(slot)
-    posUtil.assertParentSlot(slot)
-    self.parentSlotsInfo_[slot] = nil
-    self:updateLowest_()
-end
-
----@param crop ScannedInfo
----@return integer? slot
-function BreedFarm:firstParentWorseThan_(crop)
-    if crop.tier > self.lowestStatScore_ then
-        return self.lowestStatScoreSlot_
+    if not self:isParentSlot(slot) then
+        error(slot .. " is not a parent slot", 2)
     end
-    return nil
+    error("not implemented")
 end
 
-function BreedFarm:updateLowest_()
-    self:updateLowestStatScore_()
+--[[
+    Given a new crop, finds the next parent slot to upgrade.
+
+    If there is no need to upgrade, returns nil.
+    If there is a slot to be upgraded, but there is no crop in it to replace,
+    returns the slot only.
+]]
+---@param newCrop ScannedInfo
+---@return integer? parentSlot
+---@return ScannedInfo? parentCropToUpgrade
+function BreedFarm:nextSlotToUpgrade(newCrop)
+    error("not implemented")
 end
 
-function BreedFarm:updateLowestStatScore_()
-    local lowestStatScore = 64
-    local lowestStatScoreSlot = 0
+--[[
+    Gets called after any parent slot has been changed, e.g.
+    after adding/upgrading/removing a parent.
+]]
+function BreedFarm:onParentSlotsChanged_()
+    -- do nothing
+end
 
-    for slot, info in pairs(self.parentSlotsInfo_) do
-        local score = self.getBreedStatScore_(info)
-        if score < lowestStatScore then
-            lowestStatScore = score
-            lowestStatScoreSlot = slot
-        end
-    end
-
-    self.lowestStatScore_ = lowestStatScore
-    self.lowestStatScoreSlot_ = lowestStatScoreSlot
+--[[
+    Gets called after upgrading a parent crop
+]]
+---@param newCrop ScannedInfo
+---@param slot integer
+---@param oldCrop ScannedInfo?
+function BreedFarm:onParentCropUpgraded_(newCrop, slot, oldCrop)
+    -- do nothing
 end
 
 return BreedFarm

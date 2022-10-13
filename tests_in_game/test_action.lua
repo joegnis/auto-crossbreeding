@@ -1,97 +1,84 @@
-local Action = require "action"
-local gps = require "gps"
 local posUtil = require "posUtil"
-local utils = require "utils"
+
+local testUtils = require "tests_in_game.utils"
 
 
 local function testRestockCropSticks()
-    local action = Action:new()
-    action:restockCropSticksIfNotEnough()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:restockCropSticksIfNotEnough()
 end
 
 local function testDumpLootsIfNeeded()
-    local action = Action:new()
-    action:dumpLootsIfNeeded()
-    gps.backOrigin()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:dumpLootsIfNeeded()
+    farmer.gps:backOrigin()
 end
 
 local function testBreakCrop()
-    local action = Action:new()
-    action:breakCrop()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:breakCrop()
 end
 
 local function testTransplantCrop()
-    local action = Action:new()
-    action:equippedOrExit(true, true, true)
-    action:transplantCrop({ -1, 1 }, { 2, 0 })
-    action:transplantCrop({ -3, 1 }, { 2, 2 })
-    gps.backOrigin()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:equippedOrExit(true, true, true)
+    farmer.action:transplantCrop({ -1, 1 }, { 2, 0 })
+    farmer.action:transplantCrop({ -3, 1 }, { 2, 2 })
+    farmer.gps:backOrigin()
 end
 
 local function testSafeEquip()
     local component = require "component"
     local invControl = component.inventory_controller
 
-    local action = Action:new()
-    action:equippedOrExit(true, true, true)
-    action:doAfterSafeEquip(action.spadeSlot, function()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:equippedOrExit(true, true, true)
+    farmer.action:doAfterSafeEquip(farmer:spadeSlot(), function()
         os.sleep(0.5)
-        action:doAfterSafeEquip(action.binderSlot, function()
+        farmer.action:doAfterSafeEquip(farmer:binderSlot(), function()
             os.sleep(0.5)
-            action:doAfterSafeEquip(action.cropStickSlot, function()
+            farmer.action:doAfterSafeEquip(farmer:cropStickSlot(), function()
                 os.sleep(0.5)
             end)
         end)
     end)
-    print("slot spade: " .. invControl.getStackInInternalSlot(action.spadeSlot).name)
-    print("slot binder: " .. invControl.getStackInInternalSlot(action.binderSlot).name)
-    print("slot crop stick: " .. invControl.getStackInInternalSlot(action.cropStickSlot).name)
+    print("slot spade: " .. invControl.getStackInInternalSlot(farmer:spadeSlot()).name)
+    print("slot binder: " .. invControl.getStackInInternalSlot(farmer:binderSlot()).name)
+    print("slot crop stick: " .. invControl.getStackInInternalSlot(farmer:cropStickSlot()).name)
 end
 
 local function testCheckEquipment()
-    local action = Action:new()
-    print(action:checkEquipment(true, true, true))
+    local farmer = testUtils.createTestFarmer()
+    print(farmer.action:checkEquipment(true, true, true))
 end
 
 local function testCleanUpBreedFarm()
     local farmSize = 5
-    local action = Action:new()
-    action:equippedOrExit(true, false, false)
-    action:cleanUpFarm(posUtil.allBreedPos(farmSize))
-    gps.backOrigin()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:equippedOrExit(true, false, false)
+    farmer.action:cleanUpFarm(posUtil.allBreedPos(farmSize))
+    farmer.gps:backOrigin()
 end
 
 local function testDumpLoots()
-    local action = Action:new()
-    action:dumpLoots()
-    gps.backOrigin()
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:dumpLoots()
+    farmer.gps:backOrigin()
 end
 
 local function testPlaceCropSticks()
-    local action = Action:new()
-    gps.go({ -2, -1 })
-    action:placeCropSticks(true)
-    gps.backOrigin()
+    local farmer = testUtils.createTestFarmer()
+    farmer.gps:go({ -2, -1 })
+    farmer.action:placeCropSticks(true)
+    farmer.gps:backOrigin()
 end
 
-local function testMsgError()
-    local ok = xpcall(
-        function()
-            --error(utils.newMsgError("foobar"))
-            error("foobar")
-        end,
-        function(err)
-            if utils.isMsgError(err) then
-                print("caught a MsgError")
-            else
-                print("it is a normal error")
-                io.stderr:write(err .. "\n")
-                io.stderr:write(debug.traceback() .. "\n")
-            end
-            return err
-        end
-    )
-    print("ok: " .. tostring(ok))
+local function testTestsIfFarmlandBelow(pos)
+    local farmer = testUtils.createTestFarmer()
+    farmer.action:checkEquipment(true, false, true)
+    farmer.gps:go(pos)
+    print(farmer.action:testsIfFarmlandBelow())
+    farmer.gps:backOrigin()
 end
 
-testMsgError()
+testTestsIfFarmlandBelow({-1, -1})

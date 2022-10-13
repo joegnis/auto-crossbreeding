@@ -1,37 +1,26 @@
 local robot = require("robot")
 
-local M = {}
-local nowFacing = 1
-local nowPos = { 0, 0 }
-local savedPos = {}
+---@class Gps
+---@field farmer_ Farmer
+---@field savedPos_ Position[]
+local Gps = {}
 
-local function turningDelta(facing)
-    local delta = (facing - nowFacing) % 4
-    if delta <= 2 then
-        return delta
-    else
-        return 4 - delta
-    end
+---@param farmer Farmer
+function Gps:new(farmer)
+    local o = {}
+    self.__index = self
+    o = setmetatable(o, self)
+
+    o.farmer_ = farmer
+    o.savedPos_ = {}
+
+    return o
 end
 
-local function safeForward()
-    local forwardSuccess
-    repeat
-        forwardSuccess = robot.forward()
-    until forwardSuccess
-end
-
-function M.getFacing()
-    return nowFacing
-end
-
-function M.getPos()
-    return nowPos
-end
-
-function M.turnTo(facing)
-    local delta = (facing - nowFacing) % 4
-    nowFacing = facing
+---@param facing Facing
+function Gps:turnTo(facing)
+    local delta = (facing - self.farmer_.facing_) % 4
+    self.farmer_.facing_ = facing
     if delta <= 2 then
         for _ = 1, delta do
             robot.turnRight()
@@ -43,48 +32,52 @@ function M.turnTo(facing)
     end
 end
 
-function M.go(pos)
-    if nowPos[1] == pos[1] and nowPos[2] == pos[2] then
+---@param destPos Position
+function Gps:go(destPos)
+    local destX, destY = table.unpack(destPos)
+    local curX, curY = table.unpack(self.farmer_.position_)
+    if curX == destX and curY == destY then
         return
     end
 
     -- find path
-    local posDelta = { pos[1] - nowPos[1], pos[2] - nowPos[2] }
+    local deltaX = destX - curX
+    local deltaY = destY - curY
     local path = {}
 
-    if posDelta[1] > 0 then
-        path[#path + 1] = { 2, posDelta[1] }
-    elseif posDelta[1] < 0 then
-        path[#path + 1] = { 4, -posDelta[1] }
+    if deltaX > 0 then
+        path[#path + 1] = { 2, deltaX }
+    elseif deltaX < 0 then
+        path[#path + 1] = { 4, -deltaX }
     end
 
-    if posDelta[2] > 0 then
-        path[#path + 1] = { 1, posDelta[2] }
-    elseif posDelta[2] < 0 then
-        path[#path + 1] = { 3, -posDelta[2] }
+    if deltaY > 0 then
+        path[#path + 1] = { 1, deltaY }
+    elseif deltaY < 0 then
+        path[#path + 1] = { 3, -deltaY }
     end
 
     -- optimal first turn
-    if #path == 2 and turningDelta(path[2][1]) < turningDelta(path[1][1]) then
+    if #path == 2 and self:turningDelta_(path[2][1]) < self:turningDelta_(path[1][1]) then
         path[1], path[2] = path[2], path[1]
     end
 
     for i = 1, #path do
-        M.turnTo(path[i][1])
+        self:turnTo(path[i][1])
         for _ = 1, path[i][2] do
-            safeForward()
+            self:safeForward_()
         end
     end
 
-    nowPos = pos
+    self.farmer_.position_ = destPos
 end
 
-function M.backOrigin()
-    M.go({0, 0})
-    M.turnTo(1)
+function Gps:backOrigin()
+    self:go({ 0, 0 })
+    self:turnTo(1)
 end
 
-function M.down(distance)
+function Gps.down(distance)
     if distance == nil then
         distance = 1
     end
@@ -93,7 +86,7 @@ function M.down(distance)
     end
 end
 
-function M.up(distance)
+function Gps.up(distance)
     if distance == nil then
         distance = 1
     end
@@ -102,16 +95,34 @@ function M.up(distance)
     end
 end
 
-function M.save()
-    savedPos[#savedPos + 1] = nowPos
+function Gps:save()
+    self.savedPos_[#self.savedPos_ + 1] = self.farmer_.position_
 end
 
-function M.resume()
-    if #savedPos == 0 then
+function Gps:resume()
+    if #self.savedPos_ == 0 then
         return
     end
-    M.go(savedPos[#savedPos])
-    savedPos[#savedPos] = nil
+    self:go(self.savedPos_[#self.savedPos_])
+    table.remove(self.savedPos_)
 end
 
-return M
+---@param facing integer
+---@return number
+function Gps:turningDelta_(facing)
+    local delta = (facing - self.farmer_.facing_) % 4
+    if delta <= 2 then
+        return delta
+    else
+        return 4 - delta
+    end
+end
+
+function Gps:safeForward_()
+    local forwardSuccess
+    repeat
+        forwardSuccess = robot.forward()
+    until forwardSuccess
+end
+
+return Gps

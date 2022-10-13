@@ -1,18 +1,23 @@
 local Farmer = require "farmers.Farmer"
-local gps = require "gps"
 
 
----@class Crossbreeder: Farmer
+---@class Crossbreeder: FarmerBase
 local Crossbreeder = Farmer:newChildClass()
 
----@param action Action?
+---@param config GlobalConfig
+---@param initPos Position?
+---@param initFacing Facing?
 ---@param getBreedStatScore funGetStatScore?
 ---@param getSpreadStatScore funGetStatScore?
-function Crossbreeder:new(action, getBreedStatScore, getSpreadStatScore)
+function Crossbreeder:new(
+    config, initPos, initFacing, getBreedStatScore, getSpreadStatScore
+)
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:super().init_(o, action, getBreedStatScore, getSpreadStatScore)
+    o:superClass().init_(
+        o, config, initPos, initFacing, getBreedStatScore, getSpreadStatScore
+    )
     -- Child class specific init
     return o
 end
@@ -20,30 +25,30 @@ end
 ---@param slot integer
 ---@param pos Position
 ---@param crop ScannedInfo guaranteed to be a crop
----@param breedFarm BreedFarm
+---@param breedFarm CrossbreedFarm
 ---@param storageFarm StorageFarm
 function Crossbreeder:handleOffspringCrop_(slot, pos, crop, breedFarm, storageFarm)
     if storageFarm:cropExists(crop.name) then
-        breedFarm:tryUpgradeParentCrop(
+        breedFarm:upgradeParentCrop_(
             crop,
             function(parentPos)
                 -- Saves as breed parent to get higher quality
-                self.action_:transplantCrop(pos, parentPos)
-                gps.go(pos)
-                self.action_:placeCropSticks(true)
+                self.action:transplantCrop(pos, parentPos)
+                self.gps:go(pos)
+                self.action:placeCropSticks(true)
                 print(breedFarm:reportLowest())
             end,
             function()
-                self.action_:breakCrop()
-                self.action_:placeCropSticks(true)
+                self.action:breakCrop()
+                self.action:placeCropSticks(true)
             end
         )
     else
         -- Saves to storage farm
         storageFarm:addCrop(crop, function(destPos)
-            self.action_:transplantCrop(pos, destPos)
-            gps.go(pos)
-            self.action_:placeCropSticks(true)
+            self.action:transplantCrop(pos, destPos)
+            self.gps:go(pos)
+            self.action:placeCropSticks(true)
         end)
         print(storageFarm:reportStatus())
     end

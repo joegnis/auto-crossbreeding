@@ -5,20 +5,39 @@ M.BINDER_MCNAME = "ThaumicTinkerer:connector"
 M.CROPSTICK_MCNAME = "IC2:blockCrop"
 M.SEED_BAG_MCNAME = "IC2:itemCropSeed"
 
----Converts a table to string
+---Converts a table to string recursively
 ---@param obj table
 ---@return string
 function M.tableToString(obj)
     local function toString(o)
         if type(o) == 'table' then
-            local s = '{ '
+            local elements = {}
             for k, v in pairs(o) do
                 if type(k) ~= 'number' then
                     k = '"' .. k .. '"'
                 end
-                s = s .. '[' .. k .. '] = ' .. toString(v) .. ','
+                elements[#elements + 1] = string.format("[%s]=%s", k, toString(v))
             end
-            return s .. '} '
+            return string.format("{%s}", table.concat(elements, ","))
+        else
+            return tostring(o)
+        end
+    end
+
+    return toString(obj)
+end
+
+---Converts a list to string recursively
+---@param obj table
+---@return string
+function M.listToString(obj)
+    local function toString(o)
+        if type(o) == 'table' then
+            local elements = {}
+            for _, v in ipairs(o) do
+                elements[#elements + 1] = toString(v)
+            end
+            return string.format("[%s]", table.concat(elements, ","))
         else
             return tostring(o)
         end
@@ -86,12 +105,11 @@ function M.setToList(set)
     return list
 end
 
----@generic T
----@param set Set<`T`>
+---@param t table
 ---@return integer
-function M.sizeOfSet(set)
+function M.sizeOfTable(t)
     local count = 0
-    for _ in pairs(set) do
+    for _ in pairs(t) do
         count = count + 1
     end
     return count
@@ -106,6 +124,7 @@ function M.newMsgError(msg)
     function mt.__tostring(err)
         return err.msg
     end
+
     local err = { type = "msg", msg = msg }
     setmetatable(err, mt)
     return err
@@ -125,9 +144,9 @@ end
 ---@return any result
 ---@return any ...
 function M.safeDoPrintError(funDo, success, fail, arg1, ...)
-    local ret = {xpcall(
+    local ret = { xpcall(
         funDo,
-        function (err)
+        function(err)
             if M.isMsgError(err) then
                 io.stderr:write(err.msg .. "\n")
             else
@@ -137,13 +156,59 @@ function M.safeDoPrintError(funDo, success, fail, arg1, ...)
         end,
         arg1,
         ...
-    )}
+    ) }
     if ret[1] then
         success()
     else
         fail()
     end
     return table.unpack(ret, 2)
+end
+
+---@alias ScannedCrop { isCrop: 'true', name: string, gr: integer, ga: integer, re: integer, tier: integer }
+---@alias ScannedWeed { isCrop: 'false', name: '"weed"' }
+---@alias ScannedAir { isCrop: 'false', name: '"air"' }
+---@alias ScannedCropStick { isCrop: 'false', name: '"cropStick"' }
+---@alias ScannedOther { isCrop: 'false', name: string }
+---@alias ScannedInfo ScannedCrop | ScannedWeed | ScannedAir | ScannedCropStick | ScannedOther
+local ScannedInfoFactory = {}
+M.ScannedInfoFactory = ScannedInfoFactory
+
+---@param name string
+---@param ga integer
+---@param gr integer
+---@param re integer
+---@param tier integer
+---@return ScannedCrop
+function ScannedInfoFactory:newCrop(name, ga, gr, re, tier)
+    return {
+        isCrop = true,
+        name = name,
+        ga = ga,
+        gr = gr,
+        re = re,
+        tier = tier,
+    }
+end
+
+---@return ScannedWeed
+function ScannedInfoFactory:newWeed()
+    return { isCrop = false, name = "weed" }
+end
+
+---@return ScannedAir
+function ScannedInfoFactory:newAir()
+    return { isCrop = false, name = "air" }
+end
+
+---@return ScannedCropStick
+function ScannedInfoFactory:newCropStick()
+    return { isCrop = false, name = "cropStick" }
+end
+
+---@return ScannedOther
+function ScannedInfoFactory:newOther(name)
+    return { isCrop = false, name = name }
 end
 
 ---@class Deque
@@ -164,6 +229,22 @@ function Deque:new()
     o.last_ = -1
     o.size_ = 0
 
+    return o
+end
+
+--[[
+Creates a Deque from a table.
+
+Uses pairs() to iterate the table's values.
+Elements are pushed to front in the iteration order.
+]]
+---@param table table
+---@return Deque
+function Deque:newFromTable(table)
+    local o = self:new()
+    for _, val in pairs(table) do
+        o:pushFirst(val)
+    end
     return o
 end
 
