@@ -66,10 +66,11 @@ local function testDumpLoots()
     farmer.gps:backOrigin()
 end
 
-local function testPlaceCropSticks()
+local function testPlaceCropSticks(pos, placeDouble)
     local farmer = testUtils.createTestFarmer()
-    farmer.gps:go({ -2, -1 })
-    farmer.action:placeCropSticks(true)
+    farmer.action:equippedOrExit(false, false, true)
+    farmer.gps:go(pos)
+    farmer.action:placeCropSticks(placeDouble)
     farmer.gps:backOrigin()
 end
 
@@ -81,4 +82,4 @@ local function testTestsIfFarmlandBelow(pos)
     farmer.gps:backOrigin()
 end
 
-testTestsIfFarmlandBelow({-1, -1})
+testPlaceCropSticks({-1, 0})

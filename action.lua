@@ -12,7 +12,6 @@ local utils = require "utils"
 ---@class Action
 ---@field farmer_ Farmer
 ---@field globalConfig_ GlobalConfig
----@field gps_ table
 ---@field curEquip_ string
 local Action = {}
 
@@ -24,9 +23,13 @@ function Action:new(farmer)
 
     o.farmer_ = farmer
     o.globalConfig_ = farmer.globalConfig
-    o.gps_ = farmer.gps
 
     return o
+end
+
+---@return table
+function Action:gps()
+    return self.farmer_.gps
 end
 
 ---@param duration number?
@@ -151,7 +154,7 @@ function Action:dumpLootsThreshold_(threshold)
 
     if #occupiedSlots > threshold then
         self:doAfterSaveSelectedSlot(function()
-            self.gps_:go(self.globalConfig_.storagePos)
+            self:gps():go(self.globalConfig_.storagePos)
             for _, slot in ipairs(occupiedSlots) do
                 robot.select(slot)
                 robot.dropDown()
@@ -162,7 +165,7 @@ end
 
 function Action:restockCropSticks()
     self:doAfterSaveSelectedSlot(function()
-        self.gps_:go(self.globalConfig_.stickContainerPos)
+        self:gps():go(self.globalConfig_.stickContainerPos)
         robot.select(self.farmer_:cropStickSlot())
         -- Can handle StorageDrawer
         while robot.count() < 64 and robot.suckDown(64 - robot.count()) do
@@ -197,27 +200,27 @@ end
 function Action:transplantCrop(fromPos, toPos)
     self:doAfterSafeEquip(self.farmer_:binderSlot(), function()
         -- transfer the crop to the relay location
-        self.gps_:go(self.globalConfig_.dislocatorPos)
+        self:gps():go(self.globalConfig_.dislocatorPos)
         robot.useDown(sides.down)
-        self.gps_:go(fromPos)
+        self:gps():go(fromPos)
         robot.useDown(sides.down, true) -- sneak-right-click on crops to prevent harvesting
-        self.gps_:go(self.globalConfig_.dislocatorPos)
+        self:gps():go(self.globalConfig_.dislocatorPos)
         self:pulseDown()
 
         -- transfer the crop to the destination
         robot.useDown(sides.down)
-        self.gps_:go(toPos)
+        self:gps():go(toPos)
         if self:scanBelow().name == "air" then
             -- e.g. does not place a stick when transplanting to an existing
             -- parent plant in breed farm
             self:placeCropSticks()
         end
         robot.useDown(sides.down, true)
-        self.gps_:go(self.globalConfig_.dislocatorPos)
+        self:gps():go(self.globalConfig_.dislocatorPos)
         self:pulseDown()
 
         -- destroy the original crop
-        self.gps_:go(self.globalConfig_.relayFarmlandPos)
+        self:gps():go(self.globalConfig_.relayFarmlandPos)
         self:breakCrop()
     end)
 end
@@ -272,7 +275,7 @@ end
 ---@param storagePos Position
 ---@return Set<string>
 function Action:getBreedsFromSeedsInInventory(storagePos)
-    self.gps_:go(storagePos)
+    self:gps():go(storagePos)
     local breeds = {}
     for stack in inventoryController.getAllStacks(sides.down) do
         if stack.name == utils.SEED_BAG_MCNAME then
@@ -290,7 +293,7 @@ end
 ---@param iterFarm fun(): integer, Position
 function Action:cleanUpFarm(iterFarm)
     for slot, pos in iterFarm do
-        self.gps_:go(pos)
+        self:gps():go(pos)
         local scanned = self:scanBelow()
         if scanned.name == "cropStick" or utils.isWeed(scanned) then
             self:breakCrop()
@@ -302,9 +305,9 @@ end
 ---@param funDo fun(): T
 ---@return T
 function Action:doAfterSavePos(funDo)
-    self.gps_:save()
+    self:gps():save()
     local ret = funDo()
-    self.gps_:resume()
+    self:gps():resume()
     return ret
 end
 
