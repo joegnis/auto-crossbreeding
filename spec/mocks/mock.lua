@@ -35,6 +35,7 @@ function M.mockAction(mockBreedFarm, mockStorageFarm)
     Action.new = realAction.new
     Action.scanBelow = mockAction.mockScanBelow(mockBreedFarm, mockStorageFarm)
     Action.deweed = mockAction.mockDeweed(mockBreedFarm, mockStorageFarm)
+    Action.breakCrop = mockAction.mockBreakCrop(mockBreedFarm, mockStorageFarm)
     Action.testsIfFarmlandBelow = mockAction.mockTestsIfFarmlandBelow(
         mockBreedFarm, mockStorageFarm
     )

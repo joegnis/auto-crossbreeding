@@ -50,6 +50,8 @@ function M.mockDeweed(breedFarm, storageFarm)
     end
 end
 
+M.mockBreakCrop = M.mockDeweed
+
 ---@param breedFarm MockFarm
 ---@param storageFarm MockFarm
 function M.mockTestsIfFarmlandBelow(breedFarm, storageFarm)

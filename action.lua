@@ -113,13 +113,7 @@ function Action:breakCrop()
     self:doAfterSavePos(function()
         self:dumpLootsIfNeeded()
     end)
-    self:doAfterSafeEquip(self.farmer_:spadeSlot(), function()
-        robot.useDown()
-        robot.swingDown()
-        if self.globalConfig_.takeCareOfDrops then
-            robot.suckDown()
-        end
-    end)
+    self:deweed()
 end
 
 function Action:deweed()
