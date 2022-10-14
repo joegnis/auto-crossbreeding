@@ -1,6 +1,6 @@
 local posUtil = require "posUtil"
 
-local testUtils = require "tests_in_game.utils"
+local testUtils = require "testsInGame.utils"
 
 
 local function testRestockCropSticks()

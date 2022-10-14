@@ -2,7 +2,7 @@ local posUtil = require "posUtil"
 local CrossbreedFarm = require "farms.CrossbreedFarm"
 local StorageFarm = require "farms.StorageFarm"
 
-local testUtils = require "tests_in_game.utils"
+local testUtils = require "testsInGame.utils"
 
 
 --[[

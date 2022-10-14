@@ -1,6 +1,6 @@
 local StorageFarm = require "farms.StorageFarm"
 
-local testUtils = require "tests_in_game.utils"
+local testUtils = require "testsInGame.utils"
 
 
 local function testScanStorageFarm()

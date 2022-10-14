@@ -19,12 +19,12 @@ local SCRIPTS = {
     "farms/StorageFarm.lua",
     "farms/CrossbreedFarm.lua",
     "farms/StatFarm.lua",
-    "tests_in_game/test_action.lua",
-    "tests_in_game/test_farmer.lua",
-    "tests_in_game/test_gps.lua",
-    "tests_in_game/test_posUtil.lua",
-    "tests_in_game/test_StorageFarm.lua",
-    "tests_in_game/utils.lua",
+    "testsInGame/test_action.lua",
+    "testsInGame/test_farmer.lua",
+    "testsInGame/test_gps.lua",
+    "testsInGame/test_posUtil.lua",
+    "testsInGame/test_StorageFarm.lua",
+    "testsInGame/utils.lua",
 }
 local CONFIGS = {
     "config.lua",
