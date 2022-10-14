@@ -18,16 +18,10 @@ end
 function M.mockScanBelow(breedFarm, storageFarm)
     ---@param action Action
     return function(action)
-        return mockUtils.doIfInFarm_(
+        return mockUtils.doIfInEitherFarm_(
             action.farmer_:pos(), breedFarm, storageFarm,
-            function(size, slot, pos)
-                return breedFarm:slotInfo(slot) or utils.ScannedInfoFactory:newAir()
-            end,
-            function(size, slot, pos)
-                return storageFarm:slotInfo(slot) or utils.ScannedInfoFactory:newAir()
-            end,
-            function(pos)
-                return utils.ScannedInfoFactory:newAir()
+            function(farm, slot, pos)
+                return farm:slotInfo(slot) or utils.ScannedInfoFactory:newAir()
             end
         )
     end
@@ -38,13 +32,10 @@ end
 function M.mockDeweed(breedFarm, storageFarm)
     ---@param action Action
     return function(action)
-        mockUtils.doIfInFarm_(
+        mockUtils.doIfInEitherFarm_(
             action.farmer_:pos(), breedFarm, storageFarm,
-            function(size, slot, pos)
-                breedFarm:clearSlot(slot)
-            end,
-            function(size, slot, pos)
-                storageFarm:clearSlot(slot)
+            function(farm, slot, pos)
+                farm:clearSlot(slot)
             end
         )
     end
@@ -58,13 +49,10 @@ function M.mockTestsIfFarmlandBelow(breedFarm, storageFarm)
     ---@param action Action
     ---@param info ScannedInfo?
     return function(action, info)
-        return mockUtils.doIfInFarm_(
+        return mockUtils.doIfInEitherFarm_(
             action.farmer_:pos(), breedFarm, storageFarm,
-            function(size, slot, pos)
-                return breedFarm:isFarmBlockBelow(slot)
-            end,
-            function(size, slot, pos)
-                return storageFarm:isFarmBlockBelow(slot)
+            function(farm, slot, pos)
+                return farm:isFarmBlockBelow(slot)
             end,
             function(pos)
                 return false

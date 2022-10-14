@@ -29,4 +29,28 @@ function M.doIfInFarm_(position, breedFarm, storageFarm, doInBreed, doInStorage,
     end
 end
 
+---@param position Position
+---@param breedFarm MockFarm
+---@param storageFarm MockFarm
+---@param doInFarm fun(farm: MockFarm, slot: integer, pos: Position)
+---@param doOther? fun(pos: Position)
+---@return any
+function M.doIfInEitherFarm_(position, breedFarm, storageFarm, doInFarm, doOther)
+    local breedFarmSize = breedFarm:size()
+    local storageFarmSize = storageFarm:size()
+    if BreedFarm:isPosInFarm(position, breedFarmSize) then
+        return doInFarm(
+            breedFarm, BreedFarm:posToSlot(position, breedFarmSize), position
+        )
+    elseif StorageFarm:isPosInFarm(position, storageFarmSize) then
+        return doInFarm(
+            storageFarm, StorageFarm:posToSlot(position, storageFarmSize), position
+        )
+    else
+        if doOther then
+            return doOther(position)
+        end
+    end
+end
+
 return M
