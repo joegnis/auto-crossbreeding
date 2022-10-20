@@ -115,6 +115,33 @@ function M.sizeOfTable(t)
     return count
 end
 
+---@param o1 any
+---@param o2 any
+---@return boolean
+function M.isEqual(o1, o2)
+    if o1 == o2 then
+        return true
+    else
+        local t1 = type(o1)
+        local t2 = type(o2)
+        if t1 == "table" and t2 == "table" then
+            local size1 = 0
+            for key, val in pairs(o1) do
+                if not M.isEqual(val, o2[key]) then
+                    return false
+                end
+                size1 = size1 + 1
+            end
+            local size2 = 0
+            for _ in pairs(o2) do
+                size2 = size2 + 1
+            end
+            return size1 == size2
+        end
+        return false
+    end
+end
+
 ---@alias Error
 ---| { type: '"msg"', msg: string }
 ---@param msg string
@@ -165,12 +192,13 @@ function M.safeDoPrintError(funDo, success, fail, arg1, ...)
     return table.unpack(ret, 2)
 end
 
----@alias ScannedCrop { isCrop: 'true', name: string, gr: integer, ga: integer, re: integer, tier: integer }
----@alias ScannedWeed { isCrop: 'false', name: '"weed"' }
----@alias ScannedAir { isCrop: 'false', name: '"air"' }
----@alias ScannedCropStick { isCrop: 'false', name: '"cropStick"' }
----@alias ScannedOther { isCrop: 'false', name: string }
+---@alias ScannedCrop { isCrop: true, name: string, gr: integer, ga: integer, re: integer, tier: integer }
+---@alias ScannedWeed { isCrop: false, name: "weed" }
+---@alias ScannedAir { isCrop: false, name: "air" }
+---@alias ScannedCropStick { isCrop: false, name: "cropStick" }
+---@alias ScannedOther { isCrop: false, name: string }
 ---@alias ScannedInfo ScannedCrop | ScannedWeed | ScannedAir | ScannedCropStick | ScannedOther
+---@class ScannedInfoFactory
 local ScannedInfoFactory = {}
 M.ScannedInfoFactory = ScannedInfoFactory
 
@@ -180,7 +208,7 @@ M.ScannedInfoFactory = ScannedInfoFactory
 ---@param re integer
 ---@param tier integer
 ---@return ScannedCrop
-function ScannedInfoFactory:newCrop(name, ga, gr, re, tier)
+function ScannedInfoFactory.newCrop(name, ga, gr, re, tier)
     return {
         isCrop = true,
         name = name,
@@ -191,24 +219,57 @@ function ScannedInfoFactory:newCrop(name, ga, gr, re, tier)
     }
 end
 
+---@param info ScannedInfo
+---@return boolean
+function M.isScannedCrop(info)
+    return info.isCrop
+end
+
 ---@return ScannedWeed
-function ScannedInfoFactory:newWeed()
+function ScannedInfoFactory.newWeed()
     return { isCrop = false, name = "weed" }
 end
 
+---@param info ScannedInfo
+---@return boolean
+function M.isScannedWeed(info)
+    return not info.isCrop and info.name == "weed"
+end
+
 ---@return ScannedAir
-function ScannedInfoFactory:newAir()
+function ScannedInfoFactory.newAir()
     return { isCrop = false, name = "air" }
 end
 
+---@param info ScannedInfo
+---@return boolean
+function M.isScannedAir(info)
+    return not info.isCrop and info.name == "air"
+end
+
 ---@return ScannedCropStick
-function ScannedInfoFactory:newCropStick()
+function ScannedInfoFactory.newCropStick()
     return { isCrop = false, name = "cropStick" }
 end
 
+---@param info ScannedInfo
+---@return boolean
+function M.isScannedCropStick(info)
+    return not info.isCrop and info.name == "cropStick"
+end
+
 ---@return ScannedOther
-function ScannedInfoFactory:newOther(name)
+function ScannedInfoFactory.newOther(name)
     return { isCrop = false, name = name }
+end
+
+---@param info ScannedInfo
+---@return boolean
+function M.isScannedOther(info)
+    return not info.isCrop
+        and info.name ~= "air"
+        and info.name ~= "cropStick"
+        and info.name ~= "weed"
 end
 
 ---@class Deque

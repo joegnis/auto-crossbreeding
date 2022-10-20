@@ -6,56 +6,53 @@ local utils = require "utils"
 
 local mocks = require "spec.mocks.mock"
 local MockFarm = require "spec.mocks.MockFarm"
+local specUtils = require "spec.mocks.utils"
 
 
----@param breedFarmSize integer
----@param breedSlotsInfo table<integer, ScannedInfo>?
----@param breedNonFarmBlockSlots integer[]?
----@param storageFarmSize integer
----@param storageSlotsInfo table<integer, ScannedInfo>?
----@param storageNonFarmBlockSlots integer[]?
+---@param breedFarm MockFarm
+---@param storageFarm MockFarm
 ---@return Farmer farmer
----@return MockFarm mockBreedFarm
----@return MockFarm mockStorageFarm
-local function mockAll(
-  breedFarmSize, breedSlotsInfo, breedNonFarmBlockSlots,
-  storageFarmSize, storageSlotsInfo, storageNonFarmBlockSlots
-)
-  local breedFarm = MockFarm:new(breedFarmSize, breedSlotsInfo, breedNonFarmBlockSlots)
-  local storageFarm = MockFarm:new(storageFarmSize, storageSlotsInfo, storageNonFarmBlockSlots)
+local function mockFarmer(breedFarm, storageFarm)
   mocks.mockCrossbreeder(breedFarm, storageFarm)
   local Crossbreeder = require "farmers.Crossbreeder"
-  return Crossbreeder:new(globalConfig), breedFarm, storageFarm
+  return Crossbreeder:new(globalConfig)
 end
 
 describe("Action", function()
   describe("deweeds", function()
-    local farmSizes = {
-      3, 3, 6
-    }
-    local weedsPosList = {
-      { 1, 4, 9 },
-      { 2, 5, 7 },
-      { 10, 17, 28, 36 },
+    local breedFarms = {
+      specUtils.createFarmFromMaps(3,
+        {
+          nil, "w", "w",
+          nil, nil, nil,
+          "w", nil, nil,
+        }
+      ),
+      specUtils.createFarmFromMaps(3,
+        {
+          nil, nil, nil,
+          "w", "w", nil,
+          nil, nil, "w",
+        }
+      ),
+      specUtils.createFarmFromMaps(6,
+        {
+          nil, nil, nil, nil, nil, nil,
+          nil, nil, "w", nil, nil, nil,
+          nil, nil, nil, nil, "w", nil,
+          nil, "w", nil, nil, nil, nil,
+          nil, nil, nil, nil, nil, nil,
+          nil, nil, nil, nil, nil, "w",
+        }
+      )
     }
 
-    for i = 1, #farmSizes do
-      local farmSize = farmSizes[i]
-      local weeds = weedsPosList[i]
-      local testName = string.format(
-        "in breed farm with size %d and weeds at %s",
-        farmSize,
-        utils.listToString(weeds)
-      )
-      it(testName, function()
-        local slotsInfo = {}
-        for _, slot in ipairs(weeds) do
-          slotsInfo[slot] = utils.ScannedInfoFactory:newWeed()
-        end
-        local farmer, breedFarm, _ = mockAll(
-          farmSize, slotsInfo, nil,
-          farmSize, nil, nil
-        )
+    for i = 1, #breedFarms do
+      local breedFarm = breedFarms[i]
+      local farmSize = breedFarm:size()
+      it("breed farm no." .. i, function()
+        local storageFarm = specUtils.createFarmFromMaps(breedFarm:size())
+        local farmer = mockFarmer(breedFarm, storageFarm)
 
         for slot = 1, farmSize ^ 2 do
           farmer.gps:go(BreedFarm:slotToPos(slot, farmSize))
@@ -64,7 +61,7 @@ describe("Action", function()
 
         local isWeeds = {}
         local expected = {}
-        for _, slot in ipairs(weeds) do
+        for slot = 1, farmSize ^ 2 do
           isWeeds[#isWeeds + 1] = breedFarm:slotInfo(slot) ~= nil
           expected[#expected + 1] = false
         end
@@ -74,44 +71,50 @@ describe("Action", function()
   end)
 
   describe("tests if there is farm block below", function()
-    local farmSizes = {
-      3, 3, 6
-    }
-    local nonFarmBlockPosLists = {
-      { 1, 4, 9 },
-      { 2, 5, 7 },
-      { 10, 17, 28, 36 },
+    local farmSizes = { 3, 3, 6 }
+    local farmBlocksMaps = {
+      {
+        true, false, false,
+        true, true, true,
+        false, true, true,
+      },
+      {
+        true, true, true,
+        false, false, true,
+        true, true, false,
+      },
+      {
+        true, true, true, true, true, true,
+        true, true, false, true, true, true,
+        true, true, true, true, false, true,
+        true, false, true, true, true, true,
+        true, true, true, true, true, true,
+        true, true, true, true, true, false,
+      }
     }
 
     for i = 1, #farmSizes do
       local farmSize = farmSizes[i]
-      local nonFarmBlocks = nonFarmBlockPosLists[i]
-      local testName = string.format(
-        "in storage farm with size %d and non-farm blocks below %s",
-        farmSize,
-        utils.listToString(nonFarmBlocks)
-      )
-      it(testName, function()
-        local farmer = mockAll(
-          farmSize, nil, nil,
-          farmSize, nil, nonFarmBlocks
-        )
+      local farmBlocksMap = farmBlocksMaps[i]
+      it("in breed farm no." .. i, function()
+        local breedFarm = specUtils.createFarmFromMaps(farmSize)
+        local storageFarm = specUtils.createFarmFromMaps(farmSize, nil, farmBlocksMap)
+        local farmer = mockFarmer(breedFarm, storageFarm)
 
-        local actualNonFarmBlocks = {}
+        local actualFarmBlocks = {}
         for slot = 1, farmSize ^ 2 do
           farmer.gps:go(StorageFarm:slotToPos(slot, farmSize))
-          if not farmer.action:testsIfFarmlandBelow() then
-            actualNonFarmBlocks[#actualNonFarmBlocks + 1] = slot
-          end
+          actualFarmBlocks[#actualFarmBlocks + 1] = farmer.action:testsIfFarmlandBelow()
         end
 
         -- Tests
-        assert.are.same(nonFarmBlocks, actualNonFarmBlocks)
+        assert.are.same(MockFarm:mapToSlotsTable(farmSize, farmBlocksMap), actualFarmBlocks)
       end)
     end
   end)
 
   describe("scans a breed farm", function()
+    local c1 = utils.ScannedInfoFactory.newCrop("stickreed", 1, 1, 1, 4)
     local farmSizes = { 3 }
     local iterators = {
       CrossbreedFarm:iterParentSlotPos(3)
@@ -119,21 +122,24 @@ describe("Action", function()
     local checkFarmlandList = {
       true
     }
-    local slotsInfoList = {
+    local farmMaps = {
       {
-        [1] = utils.ScannedInfoFactory:newCrop("stickreed", 1, 1, 1, 4),
-        [2] = utils.ScannedInfoFactory:newCrop("stickreed", 1, 1, 1, 4),
-        [5] = utils.ScannedInfoFactory:newCrop("stickreed", 1, 1, 1, 4),
-        [8] = utils.ScannedInfoFactory:newCrop("stickreed", 1, 1, 1, 4),
+        nil, nil, nil,
+        c1, c1, c1,
+        c1, nil, nil,
       }
     }
-    local nonFarmBlocksList = {
-      { 3, 9 }
+    local farmBlocksMaps = {
+      {
+        false, true, false,
+        true, true, true,
+        true, true, true,
+      }
     }
     local expectedScannedInfosList = {
       {
-        [1] = utils.ScannedInfoFactory:newCrop("stickreed", 1, 1, 1, 4),
-        [5] = utils.ScannedInfoFactory:newCrop("stickreed", 1, 1, 1, 4),
+        [1] = c1,
+        [5] = c1,
       }
     }
     local expectedEmptySlotsList = {
@@ -144,14 +150,15 @@ describe("Action", function()
       local farmSize = farmSizes[i]
       local iterator = iterators[i]
       local checkFarmland = checkFarmlandList[i]
-      local slotsInfo = slotsInfoList[i]
-      local nonFarmBlocks = nonFarmBlocksList[i]
+      local farmMap = farmMaps[i]
+      local farmBlocksMap = farmBlocksMaps[i]
       local expectedScannedInfos = expectedScannedInfosList[i]
       local expectedEmptySlots = expectedEmptySlotsList[i]
 
       local testName = string.format("No. %d", i)
       it(testName, function()
-        local farmer = mockAll(farmSize, slotsInfo, nonFarmBlocks, 1)
+        local breedFarm = specUtils.createFarmFromMaps(farmSize, farmMap, farmBlocksMap)
+        local farmer = mockFarmer(breedFarm, specUtils.createFarmFromMaps(farmSize))
         local actualSlotsInfo, actualEmptySlots = farmer:scanFarm(iterator, checkFarmland)
         assert.are.same(expectedScannedInfos, actualSlotsInfo)
         assert.are.same(expectedEmptySlots, actualEmptySlots)
