@@ -16,6 +16,9 @@ local StorageFarm = Farm:newChildClass()
 ----------------------------------------
 -- Inherited Class & Instance Methods --
 ----------------------------------------
+function StorageFarm:class()
+    return StorageFarm
+end
 
 ---Given a slot in the farm, returns its position
 ---@param slot integer

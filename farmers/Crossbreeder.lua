@@ -4,6 +4,10 @@ local Farmer = require "farmers.Farmer"
 ---@class Crossbreeder: FarmerBase
 local Crossbreeder = Farmer:newChildClass()
 
+function Crossbreeder:class()
+    return Crossbreeder
+end
+
 ---@param config GlobalConfig
 ---@param initPos Position?
 ---@param initFacing Facing?

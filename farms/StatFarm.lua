@@ -27,6 +27,9 @@ local StatFarm = BreedFarm:newChildClass()
 ----------------------------------------
 -- Inherited Class & Instance Methods --
 ----------------------------------------
+function StatFarm:class()
+    return StatFarm
+end
 
 --[[
     Creates an iterator of all parent crops' slots and positions

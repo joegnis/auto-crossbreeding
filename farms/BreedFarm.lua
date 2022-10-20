@@ -13,6 +13,9 @@ local BreedFarm = Farm:newChildClass()
 ----------------------------------------
 -- Inherited Class & Instance Methods --
 ----------------------------------------
+function BreedFarm:class()
+    return BreedFarm
+end
 
 ---Given a slot in the farm, returns its position
 ---@param slot integer
@@ -68,19 +71,7 @@ function BreedFarm:new()
 end
 
 ---@class BreedFarmBase: BreedFarm
----@field superClass fun(self: BreedFarm): BreedFarmBase
-
-function BreedFarm:newChildClass()
-    local o = {}
-    self.__index = self
-    o = setmetatable(o, self)
-
-    function o:superClass()
-        return BreedFarm
-    end
-
-    return o --[[@as BreedFarmBase]]
-end
+---@field superClass fun(self: BreedFarmBase): BreedFarm
 
 ----------------------
 -- Instance Methods --

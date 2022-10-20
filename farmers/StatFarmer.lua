@@ -1,17 +1,25 @@
 local Farmer = require "farmers.Farmer"
-local gps = require "gps"
 
----@class StatFarmer: Farmer
+
+---@class StatFarmer: FarmerBase
 local StatFarmer = Farmer:newChildClass()
 
----@param action Action?
+function StatFarmer:class()
+    return StatFarmer
+end
+
+---@param config GlobalConfig
+---@param initPos Position?
+---@param initFacing Facing?
 ---@param getBreedStatScore funGetStatScore?
 ---@param getSpreadStatScore funGetStatScore?
-function StatFarmer:new(action, getBreedStatScore, getSpreadStatScore)
+function StatFarmer:new(config, initPos, initFacing, getBreedStatScore, getSpreadStatScore)
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:super().init_(o, action, getBreedStatScore, getSpreadStatScore)
+    o:superClass().init_(
+        o, config, initPos, initFacing, getBreedStatScore, getSpreadStatScore
+    )
     -- Child class specific init
     return o
 end
@@ -22,10 +30,10 @@ end
 ---@param breedFarm BreedFarm
 ---@param storageFarm StorageFarm
 function StatFarmer:handleOffspringCrop_(slot, pos, crop, breedFarm, storageFarm)
-    storageFarm:addCrop(crop, function (newPos)
-        self.action_:transplantCrop(pos, newPos)
-        gps.go(pos)
-        self.action_:placeCropSticks(true)
+    storageFarm:addCrop(crop, function(newPos)
+        self.action:transplantCrop(pos, newPos)
+        self.gps:go(pos)
+        self.action:placeCropSticks(true)
     end)
 end
 
