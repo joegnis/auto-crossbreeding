@@ -211,7 +211,8 @@ end
 -- Inherited Class Methods --
 -----------------------------
 
----Creates a breed farm manager for auto-stat
+---Creates a breed farm manager for auto-stat.
+---At least one target crop should be located at one of the center slots.
 ---@param size integer
 ---@param targetCropName string
 ---@param parentCrops table<integer, ScannedInfo> parent crops' slot to their info
@@ -253,13 +254,23 @@ end
 
 ---@return string
 function StatFarm:reportLowest()
-    local crop = self.parentSlotsInfo_[self.lowestStatScoreSlot_]
-    return string.format(
-        "Breed farm: %s has the lowest stat score %d at %s.",
-        self:reportCropQuality(crop),
-        self.lowestStatScore_,
-        posUtil.posToString(self:slotToPos(self.lowestStatScoreSlot_))
+    local cropLowestCenter = self.parentSlotsInfo_[self.lowestStatCenterSlot_]
+    local report = string.format(
+        "Breed farm: %s has the lowest stat score %d among center crops at %s.",
+        self:reportCropQuality(cropLowestCenter),
+        self.lowestStatCenter_,
+        posUtil.posToString(self:slotToPos(self.lowestStatCenterSlot_))
     )
+    if self.lowestStatNonCenterTargetSlot_ > 0 then
+        local cropLowestNonCenter = self.parentSlotsInfo_[self.lowestStatNonCenterTargetSlot_]
+        report = report .. string.format(
+            " %s has the lowest stat score %d among non-center crops at %s.",
+            self:reportCropQuality(cropLowestNonCenter),
+            self.lowestStatNonCenterTargetSlot_,
+            posUtil.posToString(self:slotToPos(self.lowestStatNonCenterTargetSlot_))
+        )
+    end
+    return report
 end
 
 --[[
@@ -325,6 +336,10 @@ function StatFarm:removeParentCropAt(slot)
     end
     self.parentSlotsInfo_[slot] = nil
     self:onParentSlotsChanged_()
+end
+
+function StatFarm:targetCropName()
+    return self.targetCropName_
 end
 
 function StatFarm:onParentSlotsChanged_()

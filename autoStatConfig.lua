@@ -1,5 +1,7 @@
+local M = {}
+
 ---@type StatConfig
-local config = {
+M.config = {
     ---the side length of the crossbreeding farm
     breedFarmSize = 6,
     ---the side length of the new crop storage farm
@@ -14,4 +16,12 @@ local config = {
 
 ---@class StatConfig: ConfigBase
 
-return config
+---@type StatConfig
+M.defaultConfig = {
+    breedFarmSize = 6,
+    storageFarmSize = 11,
+    checkBreedFarmland = true,
+    checkStorageFarmland = true,
+}
+
+return M

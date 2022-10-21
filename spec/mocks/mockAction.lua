@@ -21,7 +21,31 @@ function M.mockScanBelow(breedFarm, storageFarm)
         return mockUtils.doIfInEitherFarm_(
             action.farmer_:pos(), breedFarm, storageFarm,
             function(farm, slot, pos)
-                return farm:slotInfo(slot) or utils.ScannedInfoFactory:newAir()
+                return farm:slotInfo(slot) or utils.ScannedInfoFactory.newAir()
+            end
+        )
+    end
+end
+
+---@param breedFarm MockFarm
+---@param storageFarm MockFarm
+function M.mockPlaceCropSticks(breedFarm, storageFarm)
+    ---@param action Action
+    ---@param placeDouble boolean?
+    ---@return boolean # true if placed
+    return function(action, placeDouble)
+        return mockUtils.doIfInEitherFarm_true(
+            action.farmer_:pos(), breedFarm, storageFarm,
+            function (farm, slot, pos)
+                local info = farm:slotInfo(slot)
+                if info.name == "air" or info.name == "cropStick" then
+                    farm:setSlot(slot, utils.ScannedInfoFactory.newCropStick())
+                    return true
+                end
+                return false
+            end,
+            function (pos)
+                return false
             end
         )
     end

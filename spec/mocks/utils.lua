@@ -69,7 +69,7 @@ end
     - others are passed through, e.g. crops
 ]]
 ---@param size integer
----@param slotsMap string[]?
+---@param slotsMap (string|nil|ScannedInfo)[]?
 ---@param farmBlocksMap boolean[]?
 function M.createFarmFromMaps(size, slotsMap, farmBlocksMap)
     local slotsInfoMap

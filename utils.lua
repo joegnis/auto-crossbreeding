@@ -115,6 +115,24 @@ function M.sizeOfTable(t)
     return count
 end
 
+---Copies a value. If it is a table, only copies top-level value.
+---@generic T
+---@param orig `T`
+---@return T
+function M.shallowCopyTable(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in pairs(orig) do
+            copy[orig_key] = orig_value
+        end
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
 ---@param o1 any
 ---@param o2 any
 ---@return boolean
