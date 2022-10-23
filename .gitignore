@@ -3,3 +3,5 @@ test/
 robot.lua
 inventory_controller.lua
 os.lua
+luacov.report.out
+luacov.stats.out
