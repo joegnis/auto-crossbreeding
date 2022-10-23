@@ -52,16 +52,20 @@ describe("A farmer in a stat farm", function()
       local farmMap = farmMaps[i]
       local expectedTargetCrop = expectedTargetCrops[i]
       local statSetting = utils.shallowCopyTable(statConfig)
-      statConfig.breedFarmSize = farmSize
-      statConfig.storageFarmSize = farmSize
+      statSetting.breedFarmSize = farmSize
+      statSetting.storageFarmSize = farmSize
 
       it("farm " .. i .. " w/ one kind of target crops", function()
         local farmer, _, _ = mockAll(
           farmSize, farmSize, farmMap, nil, nil, nil,
           nil, statSetting
         )
-        local statFarm = farmer:scanBreedFarm()
-        assert.are.equal(expectedTargetCrop, statFarm:targetCropName())
+        local statFarm, _ = farmer:scanBreedFarm()
+        if statFarm then
+          assert.are.equal(expectedTargetCrop, statFarm:targetCropName())
+        else
+          error("statFarm is empty")
+        end
       end)
     end
   end)

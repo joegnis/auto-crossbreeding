@@ -89,16 +89,6 @@ end
 ---@param storageFarm MockFarm
 function M.mockStatFarmer(breedFarm, storageFarm)
     M.mockFarmer(breedFarm, storageFarm)
-    local Farmer = require "farmers.Farmer"
-    package.loaded["farmers.StatFarmer"] = nil
-    local realStatFarmer = require "farmers.StatFarmer"
-    --[[@as StatFarmer]]
-    local StatFarmer = Farmer:newChildClass()
-    StatFarmer.new = realStatFarmer.new
-    StatFarmer.class = realStatFarmer.class
-    StatFarmer.superClass = realStatFarmer.superClass
-    StatFarmer.scanBreedFarm = realStatFarmer.scanBreedFarm
-    package.loaded["farmers.StatFarmer"] = StatFarmer
 end
 
 ------------------------

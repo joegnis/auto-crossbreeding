@@ -236,7 +236,7 @@ function StatFarm:new(
     o.lowestStatNonCenterNonTarget_ = 64
     o.lowestStatNonCenterNonTargetSlot_ = 0
 
-    self:onParentSlotsChanged_()
+    o.onParentSlotsChanged_(o)
     print(string.format(
         "Breed farm: %d parent slots in total; %d still available",
         math.ceil(o.size_ ^ 2 / 2), o.emptyCenterSlots_:size() + o.emptyNonCenterParentSlots_:size()
