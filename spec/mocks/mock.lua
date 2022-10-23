@@ -88,6 +88,7 @@ end
 ---@param breedFarm MockFarm
 ---@param storageFarm MockFarm
 function M.mockStatFarmer(breedFarm, storageFarm)
+    package.loaded["farmers.StatFarmer"] = nil
     M.mockFarmer(breedFarm, storageFarm)
 end
 
