@@ -6,33 +6,12 @@ local Farm = {}
 ------------------------------
 -- Class & Instance Methods --
 ------------------------------
-function Farm:class()
-    return Farm
-end
-
----Tests if a value is an instance of this class
----@param value any
----@return boolean
-function Farm:isInstance(value)
-    if type(value) == "table" then
-        local curClass = getmetatable(value)
-        while curClass do
-            if curClass == self:class() then
-                return true
-            else
-                curClass = getmetatable(curClass)
-            end
-        end
-    end
-    return false
-end
-
 --[[
     Usage:
-    1. Call from the class table, but must pass in instance members,
+    1. Call from the class table, but must pass in optional parameters:
         e.g. size in these methods:
 
-        local BreedFarm = Farm:newChildClass()
+        local BreedFarm = utils.inheritsFrom(Farm)
         BreedFarm:slotToPos(1, 6)
 
     2. Call from an instance (the usual way). Can skip passing in:
@@ -81,28 +60,8 @@ end
 -------------------
 -- Class Methods --
 -------------------
-
 function Farm:new()
     error("should not instantiate Farm", 2)
-end
-
----@class FarmBase: Farm
---[[
-    Adds a superClass method to make it easier for child class instances
-    to get access to their base class
-]]
----@field superClass fun(self: FarmBase): Farm
-
-function Farm:newChildClass()
-    local newClass = {}
-    self.__index = self
-    newClass = setmetatable(newClass, self)
-
-    function newClass:superClass()
-        return getmetatable(newClass):class()
-    end
-
-    return newClass
 end
 
 ----------------------

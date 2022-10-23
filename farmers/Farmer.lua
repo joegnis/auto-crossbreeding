@@ -23,44 +23,8 @@ local Farmer = {}
 -------------------
 -- Class Methods --
 -------------------
-function Farmer:class()
-    return Farmer
-end
-
 function Farmer:new()
     error("Farmer should not be instantiated", 2)
-end
-
----@class FarmerBase: Farmer
----@field superClass fun(self: FarmerBase): Farmer
-
-function Farmer:newChildClass()
-    local newClass = {}
-    self.__index = self
-    newClass = setmetatable(newClass, self)
-
-    function newClass:superClass()
-        return getmetatable(newClass):class()
-    end
-
-    return newClass
-end
-
----Tests if a value is an instance of this class
----@param value any
----@return boolean
-function Farmer:isInstance(value)
-    if type(value) == "table" then
-        local curClass = getmetatable(value)
-        while curClass do
-            if curClass == self:class() then
-                return true
-            else
-                curClass = getmetatable(curClass)
-            end
-        end
-    end
-    return false
 end
 
 ----------------------

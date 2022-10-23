@@ -1,6 +1,7 @@
 local BreedFarm = require "farms.BreedFarm"
 local Deque = require "utils".Deque
 local posUtil = require "posUtil"
+local utils = require "utils"
 
 --[[
     What's needed for init:
@@ -10,7 +11,7 @@ local posUtil = require "posUtil"
     - non-center crops
 ]]
 
----@class StatFarm: BreedFarmBase
+---@class StatFarm: BreedFarm
 ---@field targetCropName_ string
 ---@field centerParents_ table<integer, ScannedInfo>
 ---@field emptyCenterSlots_ Deque
@@ -22,15 +23,11 @@ local posUtil = require "posUtil"
 ---@field lowestStatNonCenterNonTargetSlot_ integer
 ---@field lowestStatNonCenterTarget_ integer
 ---@field lowestStatNonCenterTargetSlot_ integer
-local StatFarm = BreedFarm:newChildClass()
+local StatFarm = utils.inheritsFrom(BreedFarm)
 
 ----------------------------------------
 -- Inherited Class & Instance Methods --
 ----------------------------------------
-function StatFarm:class()
-    return StatFarm
-end
-
 --[[
     Creates an iterator of all parent crops' slots and positions
 
@@ -228,7 +225,7 @@ function StatFarm:new(
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:superClass().init_(o, size, parentCrops, getBreedStatScore)
+    BreedFarm.init_(o, size, parentCrops, getBreedStatScore)
     o.targetCropName_ = targetCropName
     o.emptyCenterSlots_ = Deque:newFromTable(emptyCenterSlots)
     o.emptyNonCenterParentSlots_ = Deque:newFromTable(emptyNonCenterParentSlots)

@@ -3,13 +3,9 @@ local StatFarm = require "farms.StatFarm"
 local utils = require "utils"
 
 
----@class StatFarmer: FarmerBase
+---@class StatFarmer: Farmer
 ---@field statConfig_ StatConfig
-local StatFarmer = Farmer:newChildClass()
-
-function StatFarmer:class()
-    return StatFarmer
-end
+local StatFarmer = utils.inheritsFrom(Farmer)
 
 ---@param globalConfig GlobalConfig
 ---@param statConfig StatConfig
@@ -25,7 +21,7 @@ function StatFarmer:new(
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:superClass().init_(
+    Farmer.init_(
         o, globalConfig, initPos, initFacing, getBreedStatScore, getSpreadStatScore
     )
     -- Child class specific init
@@ -74,7 +70,7 @@ function StatFarmer:scanBreedFarm()
 
     -- Merging two pairs of dictionaries
     local parentCrops = centerCrops
-    for slot, crop in nonCenterParentCrops do
+    for slot, crop in pairs(nonCenterParentCrops) do
         parentCrops[slot] = crop
     end
     return StatFarm:new(

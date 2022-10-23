@@ -1,3 +1,5 @@
+local utils = require "utils"
+
 local mockAction = require "spec.mocks.mockAction"
 local mockGps = require "spec.mocks.mockGps"
 
@@ -55,8 +57,6 @@ function M.mockFarmer(breedFarm, storageFarm)
     ---@type Farmer
     local Farmer = {}
     Farmer.new = realFarmer.new
-    Farmer.class = realFarmer.class
-    Farmer.newChildClass = realFarmer.newChildClass
     Farmer.init_ = realFarmer.init_
     Farmer.facing = realFarmer.facing
     Farmer.pos = realFarmer.pos
@@ -80,10 +80,8 @@ function M.mockCrossbreeder(breedFarm, storageFarm)
     package.loaded["farmers.Crossbreeder"] = nil
     local realCrossbreeder = require "farmers.Crossbreeder"
     --[[@as Crossbreeder]]
-    local Crossbreeder = Farmer:newChildClass()
+    local Crossbreeder = utils.inheritsFrom(Farmer)
     Crossbreeder.new = realCrossbreeder.new
-    Crossbreeder.class = realCrossbreeder.class
-    Crossbreeder.superClass = realCrossbreeder.superClass
     package.loaded["farmers.Crossbreeder"] = Crossbreeder
 end
 

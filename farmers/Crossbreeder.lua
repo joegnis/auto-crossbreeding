@@ -1,12 +1,9 @@
 local Farmer = require "farmers.Farmer"
+local utils = require "utils"
 
 
----@class Crossbreeder: FarmerBase
-local Crossbreeder = Farmer:newChildClass()
-
-function Crossbreeder:class()
-    return Crossbreeder
-end
+---@class Crossbreeder: Farmer
+local Crossbreeder = utils.inheritsFrom(Farmer)
 
 ---@param config GlobalConfig
 ---@param initPos Position?
@@ -19,7 +16,7 @@ function Crossbreeder:new(
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:superClass().init_(
+    Farmer.init_(
         o, config, initPos, initFacing, getBreedStatScore, getSpreadStatScore
     )
     -- Child class specific init

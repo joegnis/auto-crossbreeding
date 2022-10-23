@@ -1,15 +1,16 @@
-local posUtil = require "posUtil"
 local Deque = require "utils".Deque
 local BreedFarm = require "farms.BreedFarm"
+local posUtil = require "posUtil"
+local utils = require "utils"
 
 
----@class CrossbreedFarm: BreedFarmBase
+---@class CrossbreedFarm: BreedFarm
 ---@field emptyParentSlots_ Deque
 ---@field lowestTier_ integer
 ---@field lowestTierSlot_ integer
 ---@field lowestStatScoreInLTier_ integer
 ---@field lowestStatScoreInLTierSlot_ integer
-local CrossbreedFarm = BreedFarm:newChildClass()
+local CrossbreedFarm = utils.inheritsFrom(BreedFarm)
 
 ----------------------------------------
 -- Inherited Class & Instance Methods --
@@ -62,7 +63,7 @@ function CrossbreedFarm:new(
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:superClass().init_(o, size, parentCropsInfo, getBreedStatScore)
+    BreedFarm.init_(o, size, parentCropsInfo, getBreedStatScore)
 
     o.emptyParentSlots_ = Deque:newFromTable(emptyParentSlots)
     self:onParentSlotsChanged_()

@@ -1,22 +1,19 @@
 local Farm = require "farms.Farm"
 local posUtil = require "posUtil"
+local utils = require "utils"
 
 
 ---Base class of breed farms
 ---@alias funGetStatScore fun(cropInfo: ScannedInfo): integer
----@class BreedFarm: FarmBase
+---@class BreedFarm: Farm
 ---@field size_ integer
 ---@field parentSlotsInfo_ table<integer, ScannedInfo>
 ---@field getBreedStatScore_ funGetStatScore
-local BreedFarm = Farm:newChildClass()
+local BreedFarm = utils.inheritsFrom(Farm)
 
 ----------------------------------------
 -- Inherited Class & Instance Methods --
 ----------------------------------------
-function BreedFarm:class()
-    return BreedFarm
-end
-
 ---Given a slot in the farm, returns its position
 ---@param slot integer
 ---@param size integer? farm's size
@@ -70,9 +67,6 @@ function BreedFarm:new()
     error("should not instantiate BreedFarm", 2)
 end
 
----@class BreedFarmBase: BreedFarm
----@field superClass fun(self: BreedFarmBase): BreedFarm
-
 ----------------------
 -- Instance Methods --
 ----------------------
@@ -82,7 +76,7 @@ end
 ---@param parentCropsInfo table<integer, ScannedInfo> slot-to-ScannedInfo mapping
 ---@param getBreedStatScore funGetStatScore?
 function BreedFarm:init_(size, parentCropsInfo, getBreedStatScore)
-    self:superClass().init_(self, size)
+    Farm.init_(self, size)
     self.parentSlotsInfo_ = parentCropsInfo
     self.getBreedStatScore_ = getBreedStatScore or function(info)
         return info.ga + info.gr - info.re

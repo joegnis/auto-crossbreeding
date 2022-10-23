@@ -4,22 +4,18 @@ local posUtil = require "posUtil"
 local utils = require "utils"
 
 
----@class StorageFarm: FarmBase
+---@class StorageFarm: Farm
 ---@field storage_ table<integer, ScannedInfo>
 ---@field reverseStorage_ table<string, integer>
 ---@field size_ integer
 ---@field emptyFarmlands_ Deque
 ---@field cropsBlacklist_ Set<string>
 ---@field countBreeds_ integer
-local StorageFarm = Farm:newChildClass()
+local StorageFarm = utils.inheritsFrom(Farm)
 
 ----------------------------------------
 -- Inherited Class & Instance Methods --
 ----------------------------------------
-function StorageFarm:class()
-    return StorageFarm
-end
-
 ---Given a slot in the farm, returns its position
 ---@param slot integer
 ---@param size integer? farm's size
@@ -67,7 +63,7 @@ function StorageFarm:new(
     local o = {}
     self.__index = self
     o = setmetatable(o, self)
-    o:superClass().init_(o, size)
+    Farm.init_(o, size)
 
     o.storage_ = cropsInfo
     o.emptyFarmlands_ = Deque:newFromTable(emptyFarmlands)

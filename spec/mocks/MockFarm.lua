@@ -8,10 +8,6 @@ local utils = require "utils"
 ---@field slotsInfo_ table<integer, ScannedInfo>
 local MockFarm = {}
 
-function MockFarm:class()
-    return MockFarm
-end
-
 ---@param size integer
 ---@param slotsInfo? table<integer, ScannedInfo>
 ---@param isFarmBlocks? boolean[]
@@ -91,28 +87,10 @@ function MockFarm:slotInfo(slot)
     return self.slotsInfo_[slot]
 end
 
----Tests if a value is an instance of this class.
----A class method.
----@param value any
----@return boolean
-function MockFarm:isInstance(value)
-    if type(value) == "table" then
-        local curClass = getmetatable(value)
-        while curClass do
-            if curClass == self:class() then
-                return true
-            else
-                curClass = getmetatable(curClass)
-            end
-        end
-    end
-    return false
-end
-
 ---@param value1 any
 ---@param value2 any
 function MockFarm.__eq(value1, value2)
-    if MockFarm:isInstance(value1) and MockFarm:isInstance(value2) then
+    if utils.isInstance(value1, MockFarm) and utils.isInstance(value2, MockFarm) then
         return utils.isEqual(value1.slotsInfo_, value2.slotsInfo_)
             and utils.isEqual(value1.isFarmBlockSlots_, value2.isFarmBlockSlots_)
     end
