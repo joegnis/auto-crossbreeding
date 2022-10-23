@@ -59,7 +59,10 @@ function StatFarmer:scanBreedFarm()
         end
     end
     local targetCropsSet = utils.listToSet(targetCrops)
-    if utils.sizeOfTable(targetCropsSet) > 1 then
+    local numTargetCrops = utils.sizeOfTable(targetCropsSet)
+    if numTargetCrops == 0 then
+        return nil, "No target crop was found"
+    elseif numTargetCrops > 1 then
         return nil, "More than one crops are found on center slots: " .. utils.setToString(targetCropsSet)
     end
 
